@@ -8,11 +8,11 @@ use Shlinkio\Shlink\Core\Config\EnvVars;
 
 final class AppOptions
 {
-    public function __construct(public string $name = 'Shlink', public string $version = '4.0.0') {}
+    public function __construct(public string $name = 'Dhiarlink', public string $version = '4.0.0') {}
 
     public static function fromEnv(): self
     {
-        $version = EnvVars::isDevEnv() ? 'latest' : '%SHLINK_VERSION%';
+        $version = EnvVars::isDevEnv() ? 'latest' : '%DHIARLINK_VERSION%';
         return new self(version: $version);
     }
 }

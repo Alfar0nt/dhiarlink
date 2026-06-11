@@ -1,9 +1,9 @@
 FROM php:8.5-alpine3.22 AS base
 
-ARG SHLINK_VERSION=latest
-ENV SHLINK_VERSION=${SHLINK_VERSION}
-ARG SHLINK_RUNTIME=rr
-ENV SHLINK_RUNTIME=${SHLINK_RUNTIME}
+ARG DHIARLINK_VERSION=latest
+ENV DHIARLINK_VERSION=${DHIARLINK_VERSION}
+ARG DHIARLINK_RUNTIME=rr
+ENV DHIARLINK_RUNTIME=${DHIARLINK_RUNTIME}
 
 ENV USER_ID='1001'
 ENV PDO_SQLSRV_VERSION='5.13.0'
@@ -11,7 +11,7 @@ ENV MS_ODBC_DOWNLOAD='fae28b9a-d880-42fd-9b98-d779f0fdd77f'
 ENV MS_ODBC_SQL_VERSION='18_18.5.1.1'
 ENV LC_ALL='C'
 
-WORKDIR /etc/shlink
+WORKDIR /etc/dhiarlink
 
 # Install required PHP extensions
 RUN \
@@ -35,7 +35,7 @@ RUN if [ $(uname -m) == "x86_64" ]; then \
       apk del .phpize-deps; \
     fi
 
-# Install shlink
+# Install dhiarlink
 FROM base AS builder
 COPY . .
 COPY --from=composer:2 /usr/bin/composer ./composer.phar
@@ -43,16 +43,16 @@ RUN apk add --no-cache git && \
     php composer.phar install --no-dev --prefer-dist --optimize-autoloader --no-progress --no-interaction && \
     php composer.phar clear-cache && \
     rm -r docker composer.* && \
-    sed -i "s/%SHLINK_VERSION%/${SHLINK_VERSION}/g" module/Core/src/Config/Options/AppOptions.php
+    sed -i "s/%DHIARLINK_VERSION%/${DHIARLINK_VERSION}/g" module/Core/src/Config/Options/AppOptions.php
 
 
 # Prepare final image
 FROM base
-LABEL maintainer="Alejandro Celaya <alejandro@alejandrocelaya.com>"
+LABEL maintainer="Dhiarlink <admin@dhiarr.qzz.io>"
 
-COPY --from=builder --chown=${USER_ID} /etc/shlink .
-RUN ln -s /etc/shlink/bin/cli /usr/local/bin/shlink && \
-    if [ "$SHLINK_RUNTIME" == 'rr' ]; then \
+COPY --from=builder --chown=${USER_ID} /etc/dhiarlink .
+RUN ln -s /etc/dhiarlink/bin/cli /usr/local/bin/dhiarlink && \
+    if [ "$DHIARLINK_RUNTIME" == 'rr' ]; then \
       php ./vendor/bin/rr get --no-interaction --no-config --location bin/ && chmod +x bin/rr ; \
     fi;
 

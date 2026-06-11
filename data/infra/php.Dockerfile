@@ -1,5 +1,5 @@
 FROM php:8.5-fpm-alpine3.22
-MAINTAINER Alejandro Celaya <alejandro@alejandrocelaya.com>
+MAINTAINER Dhiarlink <admin@dhiarr.qzz.io>
 
 ENV APCU_VERSION='5.1.24'
 ENV PDO_SQLSRV_VERSION='5.13.0'

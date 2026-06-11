@@ -39,7 +39,7 @@ jobs:
           ALLOW_EMPTY_CHANGELOG: "true"
         with:
           args: |
-            build/*/shlink*_dist.zip
+            build/*/dhiarlink*_dist.zip
 
   delete-artifacts:
     needs: ['publish']

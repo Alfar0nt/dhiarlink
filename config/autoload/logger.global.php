@@ -35,8 +35,8 @@ return (static function (): array {
         ],
     ];
 
-    // In dev env or the docker container, stream Shlink logs to stderr, otherwise send them to a file
-    $useStreamForShlinkLogger = $isDev || env('SHLINK_RUNTIME') !== null;
+    // In dev env or the docker container, stream Dhiarlink logs to stderr, otherwise send them to a file
+    $useStreamForShlinkLogger = $isDev || env('DHIARLINK_RUNTIME') !== null;
 
     return [
         'logger' => [

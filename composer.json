@@ -1,8 +1,8 @@
 {
     "name": "shlinkio/shlink",
     "type": "project",
-    "homepage": "https://shlink.io",
-    "description": "A self-hosted and PHP-based URL shortener application with CLI and REST interfaces",
+    "homepage": "https://dhiarr.qzz.io",
+    "description": "Dhiarlink — A self-hosted URL shortener with CLI and REST interfaces, forked from Shlink",
     "license": "MIT",
     "authors": [
         {

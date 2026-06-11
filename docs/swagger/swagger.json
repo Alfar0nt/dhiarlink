@@ -1,13 +1,13 @@
 {
     "openapi": "3.1.0",
     "info": {
-        "title": "Shlink",
-        "description": "Shlink, the self-hosted URL shortener",
+        "title": "Dhiarlink",
+        "description": "Dhiarlink — the self-hosted URL shortener",
         "version": "3.0"
     },
 
     "externalDocs": {
-        "url": "https://shlink.io/documentation/api-docs",
+        "url": "https://dhiarr.qzz.io/docs",
         "description": "Find more info on how to start using this API here"
     },
 
@@ -29,7 +29,7 @@
     "components": {
         "securitySchemes": {
             "ApiKey": {
-                "description": "A valid shlink API key",
+                "description": "A valid Dhiarlink API key",
                 "type": "apiKey",
                 "in": "header",
                 "name": "X-Api-Key"
@@ -60,7 +60,7 @@
         },
         {
             "name": "Integrations",
-            "description": "Handle services with which shlink is integrated"
+            "description": "Handle services with which Dhiarlink is integrated"
         },
         {
             "name": "Monitoring",

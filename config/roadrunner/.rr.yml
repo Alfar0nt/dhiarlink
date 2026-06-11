@@ -21,9 +21,9 @@ jobs:
   pool:
     num_workers: ${TASK_WORKER_NUM:-0}
     max_jobs: 250 # Restart worker after processing this amount of jobs to mitigate memory leaks
-  consume: ['shlink']
+  consume: ['dhiarlink']
   pipelines:
-    shlink:
+    dhiarlink:
       driver: memory
       config:
         priority: 10
@@ -34,7 +34,7 @@ logs:
   mode: production
   channels:
     http:
-      mode: 'off' # Disable logging as Shlink handles it internally
+      mode: 'off' # Disable logging as Dhiarlink handles it internally
     server:
       encoding: ${LOGS_FORMAT:-console}
       level: info

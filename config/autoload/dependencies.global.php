@@ -35,7 +35,7 @@ return [
 
         'lazy_services' => [
             'proxies_target_dir' => 'data/proxies',
-            'proxies_namespace' => 'ShlinkProxy',
+            'proxies_namespace' => 'DhiarlinkProxy',
             'write_proxy_files' => EnvVars::isProdEnv(),
         ],
     ],

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com), and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [Unreleased] — Dhiarlink Fork
+### Changed
+* Rebranded from Shlink to Dhiarlink. Updated all user-facing branding, templates, Docker container names, and documentation.
+* Redesigned error pages (404, invalid short code) with terminal-dark-green theme.
+* Added SVG favicon with terminal prompt aesthetic.
+* Renamed RoadRunner job pipelines and Docker infrastructure to `dhiarlink_*`.
+* Updated health endpoint, Swagger docs, and build scripts with Dhiarlink branding.
+
+
 ## [5.1.0] - 2026-06-11
 ### Added
 * [#2585](https://github.com/shlinkio/shlink/issues/2585) Add new browser condition for dynamic redirects system.

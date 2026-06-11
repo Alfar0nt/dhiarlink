@@ -1,15 +1,15 @@
 services:
-    shlink_db_mysql:
+    dhiarlink_db_mysql:
         user: '0'
         environment:
-            MYSQL_DATABASE: shlink_test
+            MYSQL_DATABASE: dhiarlink_test
 
-    shlink_db_postgres:
+    dhiarlink_db_postgres:
         user: '0'
         environment:
-            POSTGRES_DB: shlink_test
+            POSTGRES_DB: dhiarlink_test
 
-    shlink_db_maria:
+    dhiarlink_db_maria:
         user: '0'
         environment:
-            MYSQL_DATABASE: shlink_test
+            MYSQL_DATABASE: dhiarlink_test

@@ -21,9 +21,9 @@ jobs:
     num_workers: 1
     debug: true
   timeout: 300
-  consume: ['shlink']
+  consume: ['dhiarlink']
   pipelines:
-    shlink:
+    dhiarlink:
       driver: memory
       config:
         priority: 10
@@ -34,7 +34,7 @@ logs:
   mode: development
   channels:
     http:
-      mode: 'off' # Disable logging as Shlink handles it internally
+      mode: 'off' # Disable logging as Dhiarlink handles it internally
     server:
       encoding: console
       level: info

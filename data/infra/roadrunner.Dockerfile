@@ -1,5 +1,5 @@
 FROM php:8.5-alpine3.22
-MAINTAINER Alejandro Celaya <alejandro@alejandrocelaya.com>
+MAINTAINER Dhiarlink <admin@dhiarr.qzz.io>
 
 ENV PDO_SQLSRV_VERSION='5.13.0'
 ENV MS_ODBC_DOWNLOAD='fae28b9a-d880-42fd-9b98-d779f0fdd77f'
@@ -49,8 +49,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 # Make home directory writable by anyone
 RUN chmod 777 /home
 
-VOLUME /home/shlink
-WORKDIR /home/shlink
+VOLUME /home/dhiarlink
+WORKDIR /home/dhiarlink
 
 # Expose roadrunner port
 EXPOSE 8080
@@ -61,6 +61,6 @@ CMD \
     # Download roadrunner binary
     if [[ ! -f "./bin/rr" ]]; then ./vendor/bin/rr get --no-interaction --no-config --location bin/ && chmod +x bin/rr ; fi && \
     # Create env file if it does not exist yet
-    if [[ ! -f "./config/params/shlink_dev_env.php" ]]; then cp ./config/params/shlink_dev_env.php.dist ./config/params/shlink_dev_env.php ; fi && \
+    if [[ ! -f "./config/params/dhiarlink_dev_env.php" ]]; then cp ./config/params/dhiarlink_dev_env.php.dist ./config/params/dhiarlink_dev_env.php ; fi && \
     # Run with `exec` so that signals are properly handled
     exec ./bin/rr serve -c config/roadrunner/.rr.dev.yml

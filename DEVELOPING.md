@@ -16,13 +16,13 @@ The first thing you need to do is clone the repository in your local machine.
 
 Then you will have to follow these steps:
 
-* Copy the `config/params/shlink_dev_env.php.dist` in the same directory, but removing the `.dist` extension:
+* Copy the `config/params/dhiarlink_dev_env.php.dist` in the same directory, but removing the `.dist` extension:
 
     ```
-    cp config/params/shlink_dev_env.php.dist config/params/shlink_dev_env.php
+    cp config/params/dhiarlink_dev_env.php.dist config/params/dhiarlink_dev_env.php
     ```
 
-    The `shlink_dev_env.php` file is git-ignored, so you can customize it as you want. For example, by adding your own GeoLite license key.
+    The `dhiarlink_dev_env.php` file is git-ignored, so you can customize it as you want. For example, by adding your own GeoLite license key.
 
 * Start-up the project by running `docker compose up`.
 
@@ -47,7 +47,7 @@ All modules are inside the `module` folder, and each one has its own `src`, `tes
 This is a simplified version of the project structure:
 
 ```
-shlink
+dhiarlink
 ├── bin
 │   ├── cli
 │   └── [...]
@@ -78,9 +78,9 @@ shlink
 
 The purposes of every folder are:
 
-* `bin`: It contains the CLI tools. The `cli` one is the main entry point to run Shlink from the command line.
+* `bin`: It contains the CLI tools. The `cli` one is the main entry point to run Dhiarlink from the command line.
 * `config`: Contains application-wide configurations, which are later merged with the ones provided by every module.
-* `data`: Common git-ignored assets, like logs, caches, lock files, GeoLite DB files, etc. It's the only location where Shlink may need to write at runtime.
+* `data`: Common git-ignored assets, like logs, caches, lock files, GeoLite DB files, etc. It's the only location where Dhiarlink may need to write at runtime.
 * `docs`: Any project documentation is stored here, like API spec definitions or architectural decision records.
 * `module`: Contains a sub-folder for every module in the project. Modules contain the source code, tests and configurations for every context in the project.
 * `public`: Few assets (like `favicon.ico` or `robots.txt`) and the web entry point are stored here. This web entry point is not used when serving the app with RoadRunner.
@@ -105,7 +105,7 @@ In order to ensure stability and no regressions are introduced while developing 
 
     They use Postgres as the database engine, and include some fixtures that ensure the same data exists at the beginning of the execution.
 
-    Since the app instance is run on a process different from the one running the tests, when a test fails it might not be obvious why. To help debugging that, the app will dump all its logs inside `data/log/api-tests`, where you will find the `shlink.log` and `access.log` files.
+    Since the app instance is run on a process different from the one running the tests, when a test fails it might not be obvious why. To help debugging that, the app will dump all its logs inside `data/log/api-tests`, where you will find the `dhiarlink.log` and `access.log` files.
 
 * **CLI tests**: These are E2E tests too, but they test console commands instead of REST endpoints.
 

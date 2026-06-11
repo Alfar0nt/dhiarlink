@@ -1,0 +1,225 @@
+/* ============================================================
+   DHIARLINK — Deep Ocean Terminal Theme
+   Design Tokens & Shared Styles
+   ============================================================
+   This file is the canonical reference for the Dhiarlink
+   terminal/hacker aesthetic. It gets inlined into each
+   self-contained HTML template (no external CSS loading).
+   ============================================================ */
+
+/* --- DESIGN TOKENS ----------------------------------------- */
+:root {
+    /* Colors — Deep Ocean Palette */
+    --bg:              #0f1419;
+    --bg-card:         #192028;
+    --bg-card-hover:   #1e2730;
+    --bg-input:        #141a21;
+    --accent:          #4a9a8e;
+    --accent-hover:    #5cc4b3;
+    --accent-dim:      rgba(74, 154, 142, 0.15);
+    --text:            #a8b2c1;
+    --text-muted:      #6b7a8d;
+    --text-bright:     #d4dce8;
+    --success:         #4ade80;
+    --error:           #f87171;
+    --warning:         #fbbf24;
+    --border:          #2a3440;
+    --border-focus:    #4a9a8e;
+
+    /* Typography — Monospace Stack */
+    --font-mono:       "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", "Consolas", "Liberation Mono", "Menlo", monospace;
+    --font-size-xs:    0.75rem;
+    --font-size-sm:    0.875rem;
+    --font-size-base:  1rem;
+    --font-size-lg:    1.25rem;
+    --font-size-xl:    1.5rem;
+    --font-size-2xl:   2rem;
+    --font-size-3xl:   2.5rem;
+    --font-size-4xl:   3.5rem;
+    --line-height:     1.6;
+
+    /* Spacing */
+    --space-xs:        0.25rem;
+    --space-sm:        0.5rem;
+    --space-md:        1rem;
+    --space-lg:        1.5rem;
+    --space-xl:        2rem;
+    --space-2xl:       3rem;
+    --space-3xl:       4rem;
+
+    /* Layout */
+    --max-width:       1200px;
+    --max-width-narrow: 720px;
+    --radius:          6px;
+    --radius-lg:       10px;
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-base: 0.2s ease;
+    --transition-slow: 0.3s ease;
+
+    /* Shadows */
+    --shadow-sm:       0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md:       0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg:       0 8px 30px rgba(0, 0, 0, 0.6);
+    --shadow-glow:     0 0 20px rgba(74, 154, 142, 0.2);
+}
+
+/* --- BASE RESET -------------------------------------------- */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height);
+    color: var(--text);
+    background-color: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+}
+
+/* --- TYPOGRAPHY -------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-bright);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+h1 { font-size: var(--font-size-4xl); }
+h2 { font-size: var(--font-size-2xl); }
+h3 { font-size: var(--font-size-xl); }
+
+p { margin-bottom: var(--space-md); }
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color var(--transition-base);
+}
+a:hover, a:focus-visible {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+/* --- ACCESSIBILITY ----------------------------------------- */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Screen reader only utility */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* --- COMMON COMPONENTS ------------------------------------- */
+
+/* Terminal prompt prefix */
+.terminal-prompt::before {
+    content: "> ";
+    color: var(--accent);
+    font-weight: 700;
+}
+
+/* Blinking cursor */
+.cursor-blink::after {
+    content: "█";
+    color: var(--accent);
+    animation: blink 1s step-end infinite;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+}
+
+/* Card surface */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+.card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-glow);
+}
+
+/* Button styles */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-lg);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--bg);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    text-decoration: none;
+    line-height: 1.5;
+}
+.btn:hover, .btn:focus-visible {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--bg);
+    text-decoration: none;
+    box-shadow: var(--shadow-glow);
+}
+
+.btn--outline {
+    background: transparent;
+    color: var(--accent);
+}
+.btn--outline:hover, .btn--outline:focus-visible {
+    background: var(--accent-dim);
+    color: var(--accent-hover);
+}
+
+/* Container */
+.container {
+    width: 100%;
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 var(--space-xl);
+}
+
+/* Section spacing */
+.section {
+    padding: var(--space-3xl) 0;
+}
+
+/* --- REDUCED MOTION ---------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

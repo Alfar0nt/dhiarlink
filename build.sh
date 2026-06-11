@@ -9,7 +9,7 @@ fi
 
 version=$1
 phpVersion=$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')
-distId="shlink${version}_php${phpVersion}_dist"
+distId="dhiarlink${version}_php${phpVersion}_dist"
 builtContent="./build/${distId}"
 projectdir=$(pwd)
 [[ -f ./composer.phar ]] && composerBin='./composer.phar' || composerBin='composer'
@@ -35,8 +35,8 @@ ${composerBin} install --no-dev --prefer-dist --optimize-autoloader --no-progres
 echo 'Deleting dev files...'
 rm composer.*
 
-# Update Shlink version
-sed -i "s/%SHLINK_VERSION%/${version}/g" module/Core/src/Config/Options/AppOptions.php
+# Update Dhiarlink version
+sed -i "s/%DHIARLINK_VERSION%/${version}/g" module/Core/src/Config/Options/AppOptions.php
 
 # Compressing file
 echo 'Compressing files...'

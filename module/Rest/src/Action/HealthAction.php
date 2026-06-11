@@ -43,7 +43,7 @@ class HealthAction extends AbstractRestAction
                 'status' => $connected ? self::STATUS_PASS : self::STATUS_FAIL,
                 'version' => $this->options->version,
                 'links' => [
-                    'about' => 'https://shlink.io',
+                    'about' => 'https://dhiarr.qzz.io',
                     'project' => 'https://github.com/shlinkio/shlink',
                 ],
             ],

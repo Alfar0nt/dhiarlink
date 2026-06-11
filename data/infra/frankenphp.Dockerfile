@@ -1,5 +1,5 @@
 FROM dunglas/frankenphp:1-php8.5-alpine
-MAINTAINER Alejandro Celaya <alejandro@alejandrocelaya.com>
+MAINTAINER Dhiarlink <admin@dhiarr.qzz.io>
 
 ENV PDO_SQLSRV_VERSION='5.13.0'
 ENV MS_ODBC_DOWNLOAD='fae28b9a-d880-42fd-9b98-d779f0fdd77f'
@@ -49,5 +49,5 @@ COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 # Make home directory writable by anyone
 RUN chmod 777 /home
 
-VOLUME /home/shlink
-WORKDIR /home/shlink
+VOLUME /home/dhiarlink
+WORKDIR /home/dhiarlink

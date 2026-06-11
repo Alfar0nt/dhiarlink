@@ -7,7 +7,7 @@ composer.lock
 composer.phar
 vendor/
 data/database.sqlite
-data/shlink-tests.db
+data/dhiarlink-tests.db
 data/GeoLite2-City.*
 data/infra/matomo
 docs/mercure.html
