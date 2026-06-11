@@ -201,6 +201,10 @@ services:
             - "8005:8080"
         volumes:
             - ./docs/swagger:/app
+            - ./docs/swagger/swagger-ui-custom.css:/usr/share/nginx/html/swagger-ui-custom.css:ro
+        environment:
+            # Load custom Dhiarlink terminal-dark-green theme
+            SWAGGER_UI_CONFIG: '{"deepLinking": true, "persistAuthorization": true}'
 
     dhiarlink_matomo:
         container_name: dhiarlink_matomo

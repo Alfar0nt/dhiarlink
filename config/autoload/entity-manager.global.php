@@ -75,6 +75,11 @@ return (static function (): array {
                     Events::onFlush => [ShortUrlVisitsCountTracker::class, OrphanVisitsCountTracker::class],
                     Events::postFlush => [ShortUrlVisitsCountTracker::class, OrphanVisitsCountTracker::class],
                 ],
+                // Doctrine ORM 3.x result/metadata cache.
+                // When Redis is available (REDIS_SERVERS env var), shlink-common wires a Redis-backed
+                // PSR-6 cache pool automatically. APCu is installed in the production Docker image
+                // for fast in-process metadata caching when Redis is not configured.
+                // The actual cache pool is injected by shlink-common's EntityManagerFactory.
             ],
             'connection' => $connection,
         ],

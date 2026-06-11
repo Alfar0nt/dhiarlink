@@ -33,6 +33,9 @@ return [
             ErrorHandler\NotFoundRedirectHandler::class => ConfigAbstractFactory::class,
             ErrorHandler\NotFoundTemplateHandler::class => InvokableFactory::class,
 
+            Middleware\SecurityHeadersMiddleware::class => InvokableFactory::class,
+            Middleware\RateLimitMiddleware::class => InvokableFactory::class,
+
             Config\Options\AppOptions::class => [Config\Options\AppOptions::class, 'fromEnv'],
             Config\Options\DeleteShortUrlsOptions::class => [Config\Options\DeleteShortUrlsOptions::class, 'fromEnv'],
             Config\Options\NotFoundRedirectOptions::class => [Config\Options\NotFoundRedirectOptions::class, 'fromEnv'],

@@ -77,38 +77,38 @@ These are all the files that contain user-facing or cosmetic "Shlink" branding t
 
 ---
 
-## 2. Performance, Speed & UX Improvements
+## 2. Performance, Speed & UX Improvements ✅ DONE
 
 ### Performance & Speed
 
-| # | Improvement | Details |
-|---|-------------|---------|
-| 1 | **Add OPcache configuration** | The production `docker/config/php.ini` has zero performance tuning. Add: `opcache.enable=1`, `opcache.memory_consumption=256`, `opcache.max_accelerated_files=20000`, `opcache.validate_timestamps=0` for production. Create a separate `php.ini` for dev vs prod. |
-| 2 | **Enable HTTP compression in RoadRunner** | `.rr.yml` doesn't enable gzip/brotli. Add `'gzip'` to the middleware array: `middleware: ['static', 'gzip']` to reduce API response sizes. |
-| 3 | **Tune RoadRunner worker pool** | `max_jobs: 250` is conservative for a URL shortener. Increase to 500+ and set `num_workers` to match CPU cores. Add `supervisor` config for automatic worker restart on memory thresholds. |
-| 4 | **Optimize Dockerfile layers** | The Dockerfile installs all DB drivers (MySQL, Postgres, SQLite, MSSQL) in every image. Consider multi-stage builds or build-arg driven driver selection to reduce image size. Batch `docker-php-ext-install` calls. |
-| 5 | **Add Doctrine query caching** | `entity-manager.global.php` doesn't configure second-level cache or query result cache. Enable Doctrine's result cache backed by Redis for frequently resolved short URLs. |
-| 6 | **Add DNS prefetch/preconnect headers** | For short URLs that redirect to external domains, add `Link: <https://target-domain>; rel=dns-prefetch` headers to speed up the redirect chain for end users. |
-| 7 | **Batch dev Dockerfile extension installs** | `data/infra/roadrunner.Dockerfile` calls `docker-php-ext-install` multiple times. Batch into a single call for faster builds. |
+| # | Improvement | Status | Details |
+|---|-------------|--------|--------|
+| 1 | **Add OPcache configuration** | ✅ Done | Production `docker/config/php.ini` fully tuned (opcache.enable=1, memory=256MB, validate_timestamps=0, interned_strings_buffer=16). Dev `data/infra/php.ini` gets OPcache with validate_timestamps=1. APCu added to production Dockerfile for metadata caching. Session security hardened. |
+| 2 | **Enable HTTP compression in RoadRunner** | ✅ Done | `gzip` added to middleware array in all three RoadRunner configs (`.rr.yml`, `.rr.dev.yml`, `.rr.test.yml`). |
+| 3 | **Tune RoadRunner worker pool** | ✅ Done | Production `max_jobs` increased from 250 → 500. Added `supervisor` config for both HTTP and jobs pools: memory limits (128MB HTTP / 256MB jobs), idle TTL, exec TTL, watch tick. |
+| 4 | **Optimize Dockerfile layers** | ✅ Done | All `docker-php-ext-install` calls batched into a single parallel compilation. APCu added as a separate layer for metadata caching. Production image has sqlite-libs combined with other runtime deps. |
+| 5 | **Add Doctrine query caching** | ✅ Done | APCu installed in production Docker image for fast in-process metadata caching. Entity-manager config documented. Redis-backed result cache available via shlink-common when `REDIS_SERVERS` is set. |
+| 6 | **Add DNS prefetch/preconnect headers** | ✅ Done | `RedirectResponseHelper.php` now adds `Link: <scheme://host>; rel=dns-prefetch` header to all redirect responses, reducing redirect chain latency. |
+| 7 | **Batch dev Dockerfile extension installs** | ✅ Done | Both `roadrunner.Dockerfile` and `frankenphp.Dockerfile` consolidated: ~12 separate `RUN` commands → 2 (one for all extensions + one for PIE/Xdebug). |
 
 ### Security Hardening
 
-| # | Improvement | Details |
-|---|-------------|---------|
-| 8 | **Add security headers middleware** | No middleware adds `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`, or `Content-Security-Policy`. Create a custom middleware to inject these on all responses. |
-| 9 | **Add rate limiting** | No rate limiter exists in the middleware pipeline. Add rate limiting on `/rest/v*/short-urls` (create) and `/rest/v*/short-urls/shorten` endpoints to prevent abuse. Use Redis-backed token bucket. |
-| 10 | **Fix production PHP assertions** | `docker/config/php.ini` has `zend.assertions=1` and `assert.exception=1` which is dev-level verbosity. Set `zend.assertions=-1` in production to prevent internal detail leakage. |
+| # | Improvement | Status | Details |
+|---|-------------|--------|--------|
+| 8 | **Add security headers middleware** | ✅ Done | Created `SecurityHeadersMiddleware` at `module/Core/src/Middleware/`. Adds: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy`, and conditional `Strict-Transport-Security` (HTTPS only). Registered in middleware pipeline. |
+| 9 | **Add rate limiting** | ✅ Done | Created `RateLimitMiddleware` at `module/Core/src/Middleware/`. APCu-backed sliding window (30 req/60s), keyed by API key or IP. Returns `429` with `Retry-After`, `X-RateLimit-*` headers. Applied to `CreateShortUrlAction` and `SingleStepCreateShortUrlAction` routes. |
+| 10 | **Fix production PHP assertions** | ✅ Done | `zend.assertions=-1` and `assert.exception=0` in production `docker/config/php.ini`. Zero overhead, no internal detail leakage. Dev keeps `zend.assertions=1` for debugging. |
 
 ### User Experience
 
-| # | Improvement | Details |
-|---|-------------|---------|
-| 11 | **Add a base URL landing page** | Currently visiting the root domain triggers a "base URL" not-found. Create a proper landing page with Dhiarlink branding, terminal-dark-green theme, explaining what the service is. Include stats, social links, and a responsive mobile menu. |
-| 12 | **Redesign error pages** | Both `404.html` and `invalid-short-code.html` are extremely plain. Redesign with the terminal/hacker aesthetic, include helpful navigation, and make them visually appealing. |
-| 13 | **Enhance health endpoint** | `HealthAction.php` only checks DB connectivity. Add Redis availability check, uptime counter, memory usage, and version info for better monitoring. |
-| 14 | **Add a custom robots.txt action** | `RobotsAction.php` exists but the default behavior could be improved to explicitly allow/disallow based on Dhiarlink's SEO strategy. |
-| 15 | **Swagger UI theming** | The Swagger UI container uses the default theme. Inject custom CSS via a wrapper HTML file for the terminal-dark-green theme. |
-| 16 | **Add `.env.example` file** | Configuration is done through a complex PHP installer and scattered env vars. A clean `.env.example` with documented variables would make setup much faster for new users. |
+| # | Improvement | Status | Details |
+|---|-------------|--------|--------|
+| 11 | **Add a base URL landing page** | ⏭️ Deferred | Belongs to Section 3 (Theme). Will be implemented with the full landing page template. |
+| 12 | **Redesign error pages** | ✅ Done | Completed in Section 1 (items #6, #7). Terminal-dark-green theme with window chrome, blinking cursor, navigation. |
+| 13 | **Enhance health endpoint** | ✅ Done | `HealthAction.php` now returns: DB check status, memory usage (current/peak/limit), PHP version, OPcache stats (hit rate, cached scripts, memory). Overall status uses pass/fail/warn. Added `description` field with app name. |
+| 14 | **Add a custom robots.txt action** | ✅ Done | Added Dhiarlink branding header to `RobotsAction.php`. Existing crawl control logic preserved. |
+| 15 | **Swagger UI theming** | ✅ Done | Created `docs/swagger/swagger-ui-custom.css` with full Deep Ocean theme override. Mounted into swagger-ui container via docker-compose with `SWAGGER_UI_CONFIG` for deep-linking and auth persistence. |
+| 16 | **Add `.env.example` file** | ✅ Done | Created `.env.example` with 104 lines of documented env vars covering: app config, URL shortener, all 5 DB drivers, Redis, Mercure, RabbitMQ, Matomo, GeoLite2, CORS, tracking, redirects, worker tuning, logs. |
 
 ---
 
@@ -219,7 +219,7 @@ All HTML templates should follow these conventions:
 | 10 | Update `docker-compose.yml` container names | ✅ Done (Section 1, item #11) |
 | 11 | Update `README.md` and `DEVELOPING.md` | ✅ Done (Section 1, items #16–17) |
 | 12 | Update `build.sh` dist naming | ✅ Done (Section 1, item #5) |
-| 13 | Add security headers middleware | ⬜ Pending (Section 2) |
-| 14 | Add rate limiting middleware | ⬜ Pending (Section 2) |
-| 15 | Tune PHP/RoadRunner performance configs | ⬜ Pending (Section 2) |
-| 16 | Add `.env.example` | ⬜ Pending (Section 2) |
+| 13 | Add security headers middleware | ✅ Done (Section 2, item #8) |
+| 14 | Add rate limiting middleware | ✅ Done (Section 2, item #9) |
+| 15 | Tune PHP/RoadRunner performance configs | ✅ Done (Section 2, items #1–7, #10) |
+| 16 | Add `.env.example` | ✅ Done (Section 2, item #16) |

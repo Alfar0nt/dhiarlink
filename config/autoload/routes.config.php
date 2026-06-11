@@ -9,7 +9,9 @@ use RKA\Middleware\IpAddress;
 use Shlinkio\Shlink\Core\Action as CoreAction;
 use Shlinkio\Shlink\Core\Config\EnvVars;
 use Shlinkio\Shlink\Core\Geolocation\Middleware\IpGeolocationMiddleware;
+use Shlinkio\Shlink\Core\Middleware\RateLimitMiddleware;
 use Shlinkio\Shlink\Core\ShortUrl\Middleware\TrimTrailingSlashMiddleware;
+
 use Shlinkio\Shlink\Rest\Action;
 use Shlinkio\Shlink\Rest\ConfigProvider;
 use Shlinkio\Shlink\Rest\Middleware;
@@ -49,11 +51,13 @@ return (static function (): array {
 
                 // Short URLs
                 Action\ShortUrl\CreateShortUrlAction::getRouteDef([
+                    RateLimitMiddleware::class,
                     $dropDomainMiddleware,
                     $overrideDomainMiddleware,
                     $shortUrlOptionsPayloadMiddleware,
                 ]),
                 Action\ShortUrl\SingleStepCreateShortUrlAction::getRouteDef([
+                    RateLimitMiddleware::class,
                     Middleware\ShortUrl\CreateShortUrlContentNegotiationMiddleware::class,
                     $overrideDomainMiddleware,
                     $shortUrlOptionsPayloadMiddleware,

@@ -1,0 +1,236 @@
+/**
+ * Dhiarlink — Swagger UI Custom Theme
+ * Terminal / Hacker aesthetic with Deep Ocean palette
+ *
+ * Mount this file into swagger-ui via docker-compose:
+ *   volumes:
+ *     - ./docs/swagger/swagger-ui-custom.css:/usr/share/nginx/html/swagger-ui-custom.css:ro
+ *
+ * Then reference it in a custom index.html or via SWAGGER_UI_CONFIG.
+ */
+
+/* ============================================================
+   Design Tokens (Deep Ocean)
+   ============================================================ */
+:root {
+    --dl-bg: #0f1419;
+    --dl-bg-card: #192028;
+    --dl-bg-code: #141b22;
+    --dl-accent: #4a9a8e;
+    --dl-accent-hover: #5cc4b3;
+    --dl-text: #a8b2c1;
+    --dl-text-muted: #6b7a8d;
+    --dl-border: #2a3440;
+    --dl-font-mono: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", "Consolas", monospace;
+}
+
+/* ============================================================
+   Global Overrides
+   ============================================================ */
+body {
+    background-color: var(--dl-bg) !important;
+    color: var(--dl-text) !important;
+    font-family: var(--dl-font-mono) !important;
+}
+
+.swagger-ui {
+    font-family: var(--dl-font-mono) !important;
+    color: var(--dl-text) !important;
+}
+
+/* Top bar */
+.swagger-ui .topbar {
+    background-color: var(--dl-bg-card) !important;
+    border-bottom: 1px solid var(--dl-border) !important;
+}
+
+.swagger-ui .topbar .link {
+    color: var(--dl-accent) !important;
+}
+
+.swagger-ui .topbar .download-url-wrapper .select-label span {
+    color: var(--dl-text-muted) !important;
+}
+
+/* Info section */
+.swagger-ui .info {
+    background-color: transparent !important;
+}
+
+.swagger-ui .info .title {
+    color: var(--dl-accent) !important;
+    font-family: var(--dl-font-mono) !important;
+}
+
+.swagger-ui .info .description p,
+.swagger-ui .info .description a {
+    color: var(--dl-text) !important;
+}
+
+.swagger-ui .info .description a:hover {
+    color: var(--dl-accent-hover) !important;
+}
+
+/* Section headers (tag groups) */
+.swagger-ui .opblock-tag {
+    background-color: var(--dl-bg-card) !important;
+    border-color: var(--dl-border) !important;
+    color: var(--dl-text) !important;
+}
+
+.swagger-ui .opblock-tag:hover {
+    background-color: var(--dl-bg-code) !important;
+}
+
+.swagger-ui .opblock-tag small {
+    color: var(--dl-text-muted) !important;
+}
+
+/* Operation blocks */
+.swagger-ui .opblock {
+    background-color: var(--dl-bg-card) !important;
+    border-color: var(--dl-border) !important;
+}
+
+.swagger-ui .opblock .opblock-summary {
+    border-color: var(--dl-border) !important;
+}
+
+.swagger-ui .opblock .opblock-summary-method {
+    font-family: var(--dl-font-mono) !important;
+    font-weight: 700 !important;
+}
+
+.swagger-ui .opblock .opblock-summary-path,
+.swagger-ui .opblock .opblock-summary-description {
+    color: var(--dl-text) !important;
+    font-family: var(--dl-font-mono) !important;
+}
+
+/* Operation body */
+.swagger-ui .opblock-body {
+    background-color: var(--dl-bg) !important;
+}
+
+.swagger-ui .opblock-body pre.microlight {
+    background-color: var(--dl-bg-code) !important;
+    color: var(--dl-text) !important;
+    font-family: var(--dl-font-mono) !important;
+    border: 1px solid var(--dl-border) !important;
+    border-radius: 4px !important;
+}
+
+/* Parameters table */
+.swagger-ui .parameters,
+.swagger-ui .responses-inner table {
+    color: var(--dl-text) !important;
+}
+
+.swagger-ui table thead tr th,
+.swagger-ui table thead tr td {
+    background-color: var(--dl-bg-card) !important;
+    color: var(--dl-accent) !important;
+    border-color: var(--dl-border) !important;
+}
+
+.swagger-ui table tbody tr td {
+    border-color: var(--dl-border) !important;
+    color: var(--dl-text) !important;
+}
+
+/* Code / schema display */
+.swagger-ui .highlight-code,
+.swagger-ui .model-example .highlight-code {
+    background-color: var(--dl-bg-code) !important;
+}
+
+.swagger-ui .model-example .highlight-code pre {
+    color: var(--dl-text) !important;
+}
+
+/* Schema model */
+.swagger-ui .model {
+    color: var(--dl-text) !important;
+}
+
+.swagger-ui .model-title {
+    color: var(--dl-accent) !important;
+}
+
+.swagger-ui .prop-type {
+    color: var(--dl-accent-hover) !important;
+}
+
+/* Buttons */
+.swagger-ui .btn {
+    background-color: transparent !important;
+    color: var(--dl-accent) !important;
+    border-color: var(--dl-accent) !important;
+    font-family: var(--dl-font-mono) !important;
+}
+
+.swagger-ui .btn:hover {
+    background-color: var(--dl-accent) !important;
+    color: var(--dl-bg) !important;
+}
+
+.swagger-ui .btn.execute {
+    background-color: var(--dl-accent) !important;
+    color: var(--dl-bg) !important;
+    border-color: var(--dl-accent) !important;
+}
+
+.swagger-ui .btn.execute:hover {
+    background-color: var(--dl-accent-hover) !important;
+}
+
+/* Input fields */
+.swagger-ui input[type="text"],
+.swagger-ui textarea,
+.swagger-ui select {
+    background-color: var(--dl-bg-code) !important;
+    color: var(--dl-text) !important;
+    border-color: var(--dl-border) !important;
+    font-family: var(--dl-font-mono) !important;
+}
+
+.swagger-ui input[type="text"]:focus,
+.swagger-ui textarea:focus {
+    border-color: var(--dl-accent) !important;
+    outline: none !important;
+}
+
+/* API key auth section */
+.swagger-ui .auth-wrapper .authorize {
+    color: var(--dl-accent) !important;
+    border-color: var(--dl-accent) !important;
+}
+
+/* Dialogs / modals */
+.swagger-ui .dialog-ux .modal-ux {
+    background-color: var(--dl-bg-card) !important;
+    border-color: var(--dl-border) !important;
+}
+
+.swagger-ui .dialog-ux .modal-ux-header h3 {
+    color: var(--dl-accent) !important;
+}
+
+/* Scrollbar (webkit) */
+.swagger-ui ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.swagger-ui ::-webkit-scrollbar-track {
+    background: var(--dl-bg);
+}
+
+.swagger-ui ::-webkit-scrollbar-thumb {
+    background: var(--dl-border);
+    border-radius: 4px;
+}
+
+.swagger-ui ::-webkit-scrollbar-thumb:hover {
+    background: var(--dl-text-muted);
+}

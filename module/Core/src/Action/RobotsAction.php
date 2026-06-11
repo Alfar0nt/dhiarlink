@@ -32,6 +32,7 @@ readonly class RobotsAction implements RequestHandlerInterface, StatusCodeInterf
     private function buildRobots(): iterable
     {
         yield <<<ROBOTS
+            # Dhiarlink robots.txt
             # For more information about the robots.txt standard, see:
             # https://www.robotstxt.org/orig.html
 

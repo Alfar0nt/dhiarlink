@@ -20,6 +20,7 @@ return [
                 AccessLogMiddleware::class,
                 ContentLengthMiddleware::class,
                 RequestIdMiddleware::class,
+                Core\Middleware\SecurityHeadersMiddleware::class,
                 ErrorHandler::class,
                 Rest\Middleware\CrossDomainMiddleware::class,
             ],

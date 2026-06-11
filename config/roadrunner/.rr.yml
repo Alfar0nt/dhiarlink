@@ -8,19 +8,30 @@ server:
 
 http:
   address: '${ADDRESS:-0.0.0.0}:${PORT:-8080}'
-  middleware: ['static']
+  middleware: ['static', 'gzip']
   static:
     dir: '../../public'
     forbid: ['.php', '.htaccess']
   pool:
     num_workers: ${WEB_WORKER_NUM:-0}
-    max_jobs: 250 # Restart worker after processing this amount of requests to mitigate memory leaks
+    max_jobs: 500 # Restart worker after this many requests to mitigate memory leaks
+    supervisor:
+      watch_tick: 1s        # How often to check worker state
+      ttl: 0                # Maximum worker lifetime (0 = unlimited)
+      idle_ttl: 10s         # Restart idle workers after this duration
+      max_worker_memory: 128  # Restart worker if memory exceeds 128MB
+      exec_ttl: 60s         # Kill worker if a single request takes longer than this
 
 jobs:
   timeout: 300 # 5 minutes
   pool:
     num_workers: ${TASK_WORKER_NUM:-0}
-    max_jobs: 250 # Restart worker after processing this amount of jobs to mitigate memory leaks
+    max_jobs: 500 # Restart worker after this many jobs to mitigate memory leaks
+    supervisor:
+      watch_tick: 1s
+      idle_ttl: 30s
+      max_worker_memory: 256
+      exec_ttl: 300s
   consume: ['dhiarlink']
   pipelines:
     dhiarlink:

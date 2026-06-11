@@ -8,7 +8,7 @@ server:
 
 http:
   address: '0.0.0.0:8080'
-  middleware: ['static']
+  middleware: ['static', 'gzip']
   static:
     dir: '../../public'
     forbid: ['.php', '.htaccess']

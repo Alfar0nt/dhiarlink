@@ -5,33 +5,31 @@ ENV PDO_SQLSRV_VERSION='5.13.0'
 ENV MS_ODBC_DOWNLOAD='fae28b9a-d880-42fd-9b98-d779f0fdd77f'
 ENV MS_ODBC_SQL_VERSION='18_18.5.1.1'
 
-RUN apk update
+# Install all PHP extensions and their dependencies in a single layer for faster builds
+RUN apk add --no-cache \
+        oniguruma-dev \
+        sqlite-libs \
+        sqlite-dev \
+        icu-dev \
+        postgresql-dev \
+        libzip-dev \
+        zlib-dev && \
+    docker-php-ext-install -j"$(nproc)" \
+        pdo_mysql \
+        pdo_pgsql \
+        pdo_sqlite \
+        calendar \
+        mbstring \
+        intl \
+        sockets \
+        bcmath
 
-# Install common php extensions
-RUN docker-php-ext-install pdo_mysql
-RUN docker-php-ext-install calendar
-
-RUN apk add --no-cache oniguruma-dev
-RUN docker-php-ext-install mbstring
-
-RUN apk add --no-cache sqlite-libs
-RUN apk add --no-cache sqlite-dev
-RUN docker-php-ext-install pdo_sqlite
-
-RUN apk add --no-cache icu-dev
-RUN docker-php-ext-install intl
-
-RUN apk add --no-cache postgresql-dev
-RUN docker-php-ext-install pdo_pgsql
-
+# Install Xdebug and zip via PIE (PHP Installer for Extensions)
 COPY --from=ghcr.io/php/pie:bin /pie /usr/bin/pie
-RUN apk add --no-cache libzip-dev zlib-dev && \
-    apk add --no-cache --virtual .phpize-deps $PHPIZE_DEPS linux-headers && \
-    docker-php-ext-install sockets && \
+RUN apk add --no-cache --virtual .phpize-deps $PHPIZE_DEPS linux-headers && \
     pie install xdebug/xdebug && \
     pie install pecl/zip && \
     apk del .phpize-deps
-RUN docker-php-ext-install bcmath
 
 # Install sqlsrv driver
 RUN apk add --update linux-headers && \

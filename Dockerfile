@@ -13,16 +13,21 @@ ENV LC_ALL='C'
 
 WORKDIR /etc/dhiarlink
 
-# Install required PHP extensions
+# Install required PHP extensions (batched for fewer layers and faster builds)
 RUN \
     # Temp install dev dependencies needed to compile the extensions \
     apk add --no-cache --virtual .dev-deps sqlite-dev postgresql-dev icu-dev libzip-dev zlib-dev linux-headers && \
-    docker-php-ext-install -j"$(nproc)" pdo_mysql pdo_pgsql intl calendar sockets bcmath zip && \
-    apk add --no-cache sqlite-libs && \
-    docker-php-ext-install -j"$(nproc)" pdo_sqlite && \
+    # All extensions in a single docker-php-ext-install call for parallel compilation \
+    docker-php-ext-install -j"$(nproc)" pdo_mysql pdo_pgsql pdo_sqlite intl calendar sockets bcmath zip && \
     # Remove temp dev extensions, and install prod equivalents that are required at runtime \
     apk del .dev-deps && \
-    apk add --no-cache postgresql icu libzip libpng
+    apk add --no-cache postgresql icu libzip libpng sqlite-libs
+
+# Install APCu for fast in-process metadata caching (Doctrine metadata, class maps)
+RUN apk add --no-cache --virtual .apcu-deps ${PHPIZE_DEPS} && \
+    pecl install apcu && \
+    docker-php-ext-enable apcu && \
+    apk del .apcu-deps
 
 # Install sqlsrv driver for x86_64 builds
 RUN if [ $(uname -m) == "x86_64" ]; then \
