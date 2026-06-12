@@ -1,0 +1,54 @@
+# ==============================================================================
+# Dhiarlink — Caddy Reverse Proxy (Production)
+# ==============================================================================
+# This Caddyfile routes requests from cloudflared to the correct backend
+# based on the hostname. All traffic is plain HTTP internally — Cloudflare
+# handles TLS termination at the edge.
+#
+# Hostname routing:
+#   dhiarr.qzz.io      → Dhiarlink backend (landing page, /rest/* API)
+#   app.dhiarr.qzz.io  → shlink-web-client dashboard (React SPA)
+#   link.dhiarr.qzz.io → Dhiarlink backend (short URL redirects)
+# ==============================================================================
+
+# Disable Caddy's automatic HTTPS — Cloudflare Tunnel handles TLS.
+# Caddy only listens on plain HTTP port 80.
+{
+    auto_https off
+    admin off
+}
+
+# --- dhiarr.qzz.io — Landing page + REST API ---------------------------------
+:80 {
+    @dhiarr host dhiarr.qzz.io
+    handle @dhiarr {
+        reverse_proxy dhiarlink:8080 {
+            # Forward the original host and protocol so Dhiarlink knows it's behind HTTPS
+            header_up X-Forwarded-Host {host}
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    # --- link.dhiarr.qzz.io — Short URL redirects ----------------------------
+    @link host link.dhiarr.qzz.io
+    handle @link {
+        reverse_proxy dhiarlink:8080 {
+            header_up X-Forwarded-Host {host}
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    # --- app.dhiarr.qzz.io — Dashboard (shlink-web-client) -------------------
+    @app host app.dhiarr.qzz.io
+    handle @app {
+        reverse_proxy dhiarlink_dashboard:80 {
+            header_up X-Forwarded-Host {host}
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    # --- Catch-all: reject unknown hosts -------------------------------------
+    handle {
+        respond "Not Found" 404
+    }
+}

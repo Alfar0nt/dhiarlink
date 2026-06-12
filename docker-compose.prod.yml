@@ -1,0 +1,187 @@
+# ==============================================================================
+# Dhiarlink — Production Docker Compose
+# ==============================================================================
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# This file runs the minimal production stack:
+#   - Dhiarlink backend (RoadRunner + PHP 8.5)
+#   - MySQL 8.0 database
+#   - Redis 7.4 (caching + pub/sub)
+#   - Caddy (reverse proxy — routes by hostname)
+#   - cloudflared (Cloudflare Tunnel — no public IP needed)
+#   - shlink-web-client (React dashboard for managing links)
+#
+# All internal traffic is plain HTTP. Cloudflare handles TLS termination.
+# ==============================================================================
+
+services:
+    # --------------------------------------------------------------------------
+    # Dhiarlink Backend — RoadRunner + PHP 8.5
+    # Handles: landing page, REST API, short URL redirects, CLI
+    # --------------------------------------------------------------------------
+    dhiarlink:
+        container_name: dhiarlink
+        image: ${DHIARLINK_IMAGE:-dhiarlink:latest}
+        restart: unless-stopped
+        build:
+            context: .
+            dockerfile: ./Dockerfile
+            args:
+                DHIARLINK_VERSION: ${DHIARLINK_VERSION:-latest}
+        env_file:
+            - .env
+        environment:
+            LC_ALL: C
+            DHIARLINK_RUNTIME: rr
+            APP_ENV: prod
+            # Database — points to the mysql service below
+            DB_DRIVER: ${DB_DRIVER:-mysql}
+            DB_HOST: ${DB_HOST:-dhiarlink_db}
+            DB_PORT: ${DB_PORT:-3306}
+            DB_NAME: ${DB_NAME:-dhiarlink}
+            DB_USER: ${DB_USER:-dhiarlink}
+            DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+            # Redis — points to the redis service below
+            REDIS_SERVERS: ${REDIS_SERVERS:-tcp://dhiarlink_redis:6379}
+            REDIS_PUB_SUB_ENABLED: ${REDIS_PUB_SUB_ENABLED:-true}
+            # URL Shortener
+            DEFAULT_DOMAIN: ${DEFAULT_DOMAIN:-link.dhiarr.qzz.io}
+            IS_HTTPS_ENABLED: ${IS_HTTPS_ENABLED:-true}
+            # Behind Cloudflare Tunnel — trust proxy headers for real client IP
+            TRUSTED_PROXIES: ${TRUSTED_PROXIES:-1}
+            # CORS — allow the dashboard origin
+            CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-https://app\.dhiarr\.qzz\.io}
+        volumes:
+            - dhiarlink_data:/etc/dhiarlink/data
+        networks:
+            - dhiarlink_internal
+        depends_on:
+            dhiarlink_db:
+                condition: service_healthy
+            dhiarlink_redis:
+                condition: service_healthy
+        healthcheck:
+            test: ["CMD", "php", "-r", "echo file_get_contents('http://127.0.0.1:8080/rest/health');"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+    # --------------------------------------------------------------------------
+    # MySQL 8.0 — Primary database
+    # --------------------------------------------------------------------------
+    dhiarlink_db:
+        container_name: dhiarlink_db
+        image: mysql:8.0
+        restart: unless-stopped
+        environment:
+            MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+            MYSQL_DATABASE: ${DB_NAME:-dhiarlink}
+            MYSQL_USER: ${DB_USER:-dhiarlink}
+            MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+        volumes:
+            - mysql_data:/var/lib/mysql
+        networks:
+            - dhiarlink_internal
+        # Do NOT expose ports to host in production — only accessible within Docker network
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
+
+    # --------------------------------------------------------------------------
+    # Redis 7.4 — Caching, session storage, and pub/sub for real-time visits
+    # --------------------------------------------------------------------------
+    dhiarlink_redis:
+        container_name: dhiarlink_redis
+        image: redis:7.4-alpine
+        restart: unless-stopped
+        command: >
+            redis-server
+            --maxmemory 128mb
+            --maxmemory-policy allkeys-lru
+            --save ""
+            --appendonly no
+        volumes:
+            - redis_data:/data
+        networks:
+            - dhiarlink_internal
+        # Do NOT expose ports to host in production
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 3
+            start_period: 10s
+
+    # --------------------------------------------------------------------------
+    # Caddy — Internal reverse proxy
+    # Routes incoming requests (from cloudflared) by hostname:
+    #   dhiarr.qzz.io      → Dhiarlink backend (landing page)
+    #   app.dhiarr.qzz.io  → shlink-web-client dashboard
+    #   link.dhiarr.qzz.io → Dhiarlink backend (short URL redirects)
+    # --------------------------------------------------------------------------
+    dhiarlink_caddy:
+        container_name: dhiarlink_caddy
+        image: caddy:2-alpine
+        restart: unless-stopped
+        volumes:
+            - ./data/infra/Caddyfile:/etc/caddy/Caddyfile:ro
+            - caddy_data:/data
+            - caddy_config:/config
+        networks:
+            - dhiarlink_internal
+        depends_on:
+            - dhiarlink
+            - dhiarlink_dashboard
+
+    # --------------------------------------------------------------------------
+    # shlink-web-client — React dashboard for managing short URLs
+    # Serves the SPA via nginx. The app connects to Dhiarlink REST API
+    # through the user's browser (not server-side).
+    # --------------------------------------------------------------------------
+    dhiarlink_dashboard:
+        container_name: dhiarlink_dashboard
+        image: dhiarlink-dashboard:latest
+        restart: unless-stopped
+        build:
+            context: .
+            dockerfile: ./data/infra/dashboard.Dockerfile
+        networks:
+            - dhiarlink_internal
+
+    # --------------------------------------------------------------------------
+    # cloudflared — Cloudflare Tunnel
+    # Connects your LXC to Cloudflare's edge without a public IP.
+    # Routes ALL three subdomains to the internal Caddy reverse proxy.
+    # --------------------------------------------------------------------------
+    cloudflared:
+        container_name: cloudflared
+        image: cloudflare/cloudflared:latest
+        restart: unless-stopped
+        command: tunnel run
+        environment:
+            TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
+        networks:
+            - dhiarlink_internal
+        depends_on:
+            - dhiarlink_caddy
+
+networks:
+    dhiarlink_internal:
+        driver: bridge
+
+volumes:
+    mysql_data:
+        driver: local
+    redis_data:
+        driver: local
+    dhiarlink_data:
+        driver: local
+    caddy_data:
+        driver: local
+    caddy_config:
+        driver: local
