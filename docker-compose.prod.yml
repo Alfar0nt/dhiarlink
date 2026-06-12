@@ -4,15 +4,17 @@
 # Usage:
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# This file runs the minimal production stack:
+# This file runs the production stack:
 #   - Dhiarlink backend (RoadRunner + PHP 8.5)
 #   - MySQL 8.0 database
 #   - Redis 7.4 (caching + pub/sub)
 #   - Caddy (reverse proxy — routes by hostname)
-#   - cloudflared (Cloudflare Tunnel — no public IP needed)
-#   - shlink-web-client (React dashboard for managing links)
+#   - dhiarlink-web-client (React dashboard from ../dhiarlink-web-client)
 #
-# All internal traffic is plain HTTP. Cloudflare handles TLS termination.
+# Cloudflare Tunnel (cloudflared) runs as a SYSTEM SERVICE on the host,
+# NOT inside Docker. It proxies to Caddy on localhost:3000.
+#
+# All internal Docker traffic is plain HTTP. Cloudflare handles TLS at the edge.
 # ==============================================================================
 
 services:
@@ -84,7 +86,7 @@ services:
             - mysql_data:/var/lib/mysql
         networks:
             - dhiarlink_internal
-        # Do NOT expose ports to host in production — only accessible within Docker network
+        # Do NOT expose ports to host — only accessible within Docker network
         healthcheck:
             test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
             interval: 10s
@@ -109,7 +111,7 @@ services:
             - redis_data:/data
         networks:
             - dhiarlink_internal
-        # Do NOT expose ports to host in production
+        # Do NOT expose ports to host
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             interval: 10s
@@ -119,15 +121,20 @@ services:
 
     # --------------------------------------------------------------------------
     # Caddy — Internal reverse proxy
-    # Routes incoming requests (from cloudflared) by hostname:
+    # Routes incoming requests (from cloudflared on host) by hostname:
     #   dhiarr.qzz.io      → Dhiarlink backend (landing page)
-    #   app.dhiarr.qzz.io  → shlink-web-client dashboard
+    #   app.dhiarr.qzz.io  → dhiarlink-web-client dashboard
     #   link.dhiarr.qzz.io → Dhiarlink backend (short URL redirects)
+    #
+    # Exposed on host port 3000 so the host's cloudflared can reach it.
     # --------------------------------------------------------------------------
     dhiarlink_caddy:
         container_name: dhiarlink_caddy
         image: caddy:2-alpine
         restart: unless-stopped
+        ports:
+            # Expose Caddy on host port 3000 for the system cloudflared to reach
+            - "3000:80"
         volumes:
             - ./data/infra/Caddyfile:/etc/caddy/Caddyfile:ro
             - caddy_data:/data
@@ -139,36 +146,29 @@ services:
             - dhiarlink_dashboard
 
     # --------------------------------------------------------------------------
-    # shlink-web-client — React dashboard for managing short URLs
-    # Serves the SPA via nginx. The app connects to Dhiarlink REST API
-    # through the user's browser (not server-side).
+    # dhiarlink-web-client — React dashboard for managing short URLs
+    # Built from the sibling ../dhiarlink-web-client project (your fork).
+    # Serves the SPA via nginx on port 8080. The dashboard connects to the
+    # Dhiarlink REST API through the user's browser (not server-side).
+    #
+    # Pre-configured with your Dhiarlink server via environment variables
+    # so users don't need to manually add the server on first visit.
     # --------------------------------------------------------------------------
     dhiarlink_dashboard:
         container_name: dhiarlink_dashboard
-        image: dhiarlink-dashboard:latest
+        image: dhiarlink-web-client:latest
         restart: unless-stopped
         build:
-            context: .
-            dockerfile: ./data/infra/dashboard.Dockerfile
-        networks:
-            - dhiarlink_internal
-
-    # --------------------------------------------------------------------------
-    # cloudflared — Cloudflare Tunnel
-    # Connects your LXC to Cloudflare's edge without a public IP.
-    # Routes ALL three subdomains to the internal Caddy reverse proxy.
-    # --------------------------------------------------------------------------
-    cloudflared:
-        container_name: cloudflared
-        image: cloudflare/cloudflared:latest
-        restart: unless-stopped
-        command: tunnel run
+            context: ../dhiarlink-web-client
+            dockerfile: ./Dockerfile
         environment:
-            TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
+            # Pre-configure the Dhiarlink server connection
+            DHIARLINK_SERVER_URL: ${DHIARLINK_SERVER_URL:-https://dhiarr.qzz.io}
+            DHIARLINK_SERVER_API_KEY: ${DHIARLINK_SERVER_API_KEY:-}
+            DHIARLINK_SERVER_NAME: ${DHIARLINK_SERVER_NAME:-Dhiarlink}
+            DHIARLINK_SERVER_FORWARD_CREDENTIALS: ${DHIARLINK_SERVER_FORWARD_CREDENTIALS:-false}
         networks:
             - dhiarlink_internal
-        depends_on:
-            - dhiarlink_caddy
 
 networks:
     dhiarlink_internal:

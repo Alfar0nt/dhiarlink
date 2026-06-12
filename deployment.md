@@ -27,6 +27,7 @@ This guide walks you through deploying Dhiarlink from zero to fully operational 
 - [Backup & Restore](#backup--restore)
 - [Troubleshooting](#troubleshooting)
 - [Quick Reference](#quick-reference)
+- [Fixing an Existing Deployment](#fixing-an-existing-deployment)
 
 ---
 
@@ -40,31 +41,38 @@ This guide walks you through deploying Dhiarlink from zero to fully operational 
                                     │
                           Cloudflare Tunnel (encrypted)
                                     │
-                            ┌───────▼───────┐
-                            │  cloudflared   │  ← Docker container
-                            └───────┬───────┘
-                                    │  (plain HTTP, port 80)
-                            ┌───────▼───────┐
-                            │     Caddy      │  ← Reverse proxy (routes by hostname)
-                            └───┬───────┬───┘
-                    ┌───────────┘       └───────────┐
-                    │                               │
-           ┌────────▼────────┐            ┌─────────▼──────────┐
-           │    Dhiarlink     │            │  shlink-web-client  │
-           │  (RoadRunner)    │            │  (React dashboard)  │
-           │  port 8080       │            │  port 80            │
-           └───┬──────────┬──┘            └────────────────────┘
-               │          │
-        ┌──────▼──┐  ┌────▼────┐
-        │ MySQL 8 │  │ Redis 7 │
-        └─────────┘  └─────────┘
+                     ┌──────────────▼──────────────┐
+                     │  cloudflared (SYSTEM SERVICE) │  ← Runs on host, NOT in Docker
+                     │  on LXC host                 │
+                     └──────────────┬──────────────┘
+                                    │  (plain HTTP, localhost:3000)
+                     ┌──────────────▼──────────────┐
+                     │  Docker Network (bridge)      │
+                     │                               │
+                     │  ┌──────────────────────┐     │
+                     │  │       Caddy           │     │  ← Reverse proxy (port 3000→80)
+                     │  └────┬────────────┬────┘     │
+                     │       │            │          │
+                     │  ┌────▼─────────┐ ┌▼──────────────────┐
+                     │  │  Dhiarlink   │ │ dhiarlink-web-client│
+                     │  │ (RoadRunner) │ │  (React dashboard) │
+                     │  │  port 8080   │ │  port 8080         │
+                     │  └──┬───────┬──┘ └────────────────────┘
+                     │     │       │
+                     │  ┌──▼──┐ ┌──▼────┐
+                     │  │MySQL│ │Redis  │
+                     │  └─────┘ └───────┘
+                     └───────────────────────────────┘
 ```
 
 **Key points:**
-- No ports are exposed to the host machine — all traffic enters via the Cloudflare Tunnel
+- **cloudflared runs as a system service** on the LXC host (not inside Docker)
+- Caddy is exposed on host port `3000` — the only port exposed to the host
+- cloudflared connects to `http://localhost:3000` (Caddy) on the host
 - TLS/HTTPS is terminated at Cloudflare's edge — internal traffic is plain HTTP
 - Caddy routes requests to the correct backend based on the hostname
 - The database and Redis are only accessible within the Docker network
+- The dashboard is built from your own `dhiarlink-web-client` fork (at `../dhiarlink-web-client`)
 
 ---
 
@@ -199,21 +207,38 @@ sudo systemctl start docker
 
 ---
 
-## Step 4: Clone & Prepare the Project
+## Step 4: Clone & Prepare the Projects
 
-### 4.1 Clone the Repository
+You need **both** repositories cloned as siblings in the same parent directory.
+
+### 4.1 Clone Both Repositories
 
 ```bash
-# Choose your preferred location
+# Choose your preferred parent directory
 cd /opt
-sudo git clone <your-repo-url> dhiarlink
+
+# Clone the backend
+sudo git clone <your-backend-repo-url> dhiarlink
 sudo chown -R $USER:$USER dhiarlink
-cd dhiarlink
+
+# Clone the dashboard (your fork)
+sudo git clone <your-web-client-repo-url> dhiarlink-web-client
+sudo chown -R $USER:$USER dhiarlink-web-client
 ```
+
+The final directory structure should look like:
+```
+/opt/
+├── dhiarlink/              ← Backend (this project)
+└── dhiarlink-web-client/   ← Dashboard (your fork)
+```
+
+> **Important:** The `docker-compose.prod.yml` builds the dashboard from `../dhiarlink-web-client`, so both repos MUST be siblings in the same parent directory.
 
 ### 4.2 Create the Production .env File
 
 ```bash
+cd /opt/dhiarlink
 cp .env.example .env
 ```
 
@@ -249,9 +274,6 @@ nano .env   # or use your preferred editor
 DB_PASSWORD=<your-generated-db-password>
 DB_ROOT_PASSWORD=<your-generated-root-password>
 
-# Cloudflare Tunnel token (from Step 6 below)
-CLOUDFLARE_TUNNEL_TOKEN=<your-tunnel-token>
-
 # Initial API key (used to auto-create the first API key on startup)
 INITIAL_API_KEY=<your-generated-api-key>
 
@@ -280,6 +302,14 @@ TRUSTED_PROXIES=1
 # === CORS — allow the dashboard to call the API ===
 CORS_ALLOW_ORIGIN=https://app\.dhiarr\.qzz\.io
 
+# === Dashboard Pre-configuration ===
+# These auto-configure the server connection in the dashboard
+# so users don't have to manually add it on first visit.
+DHIARLINK_SERVER_URL=https://dhiarr.qzz.io
+DHIARLINK_SERVER_API_KEY=<your-generated-api-key>
+DHIARLINK_SERVER_NAME=Dhiarlink
+DHIARLINK_SERVER_FORWARD_CREDENTIALS=false
+
 # === Application ===
 APP_ENV=prod
 DHIARLINK_VERSION=1.0.0
@@ -288,93 +318,107 @@ DHIARLINK_RUNTIME=rr
 
 > **Important:** The `CORS_ALLOW_ORIGIN` value uses regex escaping. The backslashes before the dots (`\.`) are intentional — they match literal dots in the domain name.
 
+> **Note:** `CLOUDFLARE_TUNNEL_TOKEN` is **not needed** in `.env` — cloudflared runs as a system service on the host and is configured separately (Step 6).
+
 ---
 
 ## Step 6: Cloudflare Tunnel Setup
+
+Since you already have cloudflared installed on your LXC, you'll configure it as a system service that routes to Caddy on `localhost:3000`.
 
 ### 6.1 Prerequisites
 
 - A Cloudflare account (free tier works)
 - Your domain (`qzz.io`) added to Cloudflare with DNS managed there
 - [Cloudflare Zero Trust dashboard](https://one.dash.cloudflare.com/) access
+- `cloudflared` installed on your LXC (which you already have)
 
-### 6.2 Create a Tunnel
+### 6.2 Create a Tunnel (if not already done)
 
+If you haven't created a tunnel yet:
+
+**Option A: Via Cloudflare Zero Trust Dashboard**
 1. Go to **[Cloudflare Zero Trust](https://one.dash.cloudflare.com/)** → **Networks** → **Tunnels**
-2. Click **Create a tunnel**
-3. Choose **Cloudflared** as the connector
-4. Name the tunnel: `dhiarlink`
-5. Click **Save tunnel**
+2. Click **Create a tunnel** → choose **Cloudflared**
+3. Name the tunnel: `dhiarlink`
+4. Copy the install token and run it on your LXC:
+   ```bash
+   cloudflared service install <your-tunnel-token>
+   ```
 
-### 6.3 Copy the Tunnel Token
-
-After creating the tunnel, you'll see a token (a long string). **Copy this token** — it's the value for `CLOUDFLARE_TUNNEL_TOKEN` in your `.env` file.
-
-### 6.4 Configure Public Hostnames
-
-In the tunnel configuration, add these **three public hostnames**. For all of them, set the **Service** to point to Caddy:
-
-| Public Hostname | Service | Notes |
-|-----------------|---------|-------|
-| `dhiarr.qzz.io` | `http://dhiarlink_caddy:80` | Landing page |
-| `app.dhiarr.qzz.io` | `http://dhiarlink_caddy:80` | Dashboard |
-| `link.dhiarr.qzz.io` | `http://dhiarlink_caddy:80` | Short URL redirects |
-
-**Additional settings for ALL three hostnames** (under "Additional application settings"):
-
-| Setting | Value |
-|---------|-------|
-| **HTTP Settings → No TLS Verify** | `Off` (not needed — internal is HTTP) |
-| **HTTP Settings → Keep Alive Timeout** | `90s` (helps with long-lived connections) |
-| **HTTP Settings → HTTP Host Header** | (leave default — Caddy routes by hostname) |
-
-> **Important:** The Service URL `http://dhiarlink_caddy:80` uses the Docker container name as hostname. This works because cloudflared and Caddy are on the same Docker network. If you see connection errors, you may need to use the Caddy container's IP address instead (find it with `docker inspect dhiarlink_caddy`).
-
-### 6.5 (Alternative) Use Local Config File Instead of Dashboard
-
-If you prefer managing the tunnel config locally instead of via the Cloudflare dashboard, create a config file:
-
+**Option B: Via CLI**
 ```bash
-mkdir -p cloudflared
+# Authenticate with Cloudflare
+cloudflared tunnel login
+
+# Create the tunnel
+cloudflared tunnel create dhiarlink
+# Note the tunnel ID and credentials file path
 ```
 
-Create `cloudflared/config.yml`:
+### 6.3 Configure the Tunnel
+
+Edit your cloudflared config file (typically at `~/.cloudflared/config.yml` or `/etc/cloudflared/config.yml`):
+
+```bash
+nano ~/.cloudflared/config.yml
+```
+
+**All three hostnames point to `localhost:3000`** (Caddy, exposed from Docker):
 
 ```yaml
-tunnel: dhiarlink
-credentials-file: /etc/cloudflared/credentials.json
+tunnel: <your-tunnel-id-or-name>
+credentials-file: /home/<user>/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
-    # Landing page
+    # Landing page (dhiarr.qzz.io)
     - hostname: dhiarr.qzz.io
-      service: http://dhiarlink_caddy:80
-    # Dashboard
+      service: http://localhost:3000
+
+    # Dashboard (app.dhiarr.qzz.io)
     - hostname: app.dhiarr.qzz.io
-      service: http://dhiarlink_caddy:80
-    # Short URL redirects
+      service: http://localhost:3000
+
+    # Short URL redirects (link.dhiarr.qzz.io)
     - hostname: link.dhiarr.qzz.io
-      service: http://dhiarlink_caddy:80
+      service: http://localhost:3000
+
     # Required catch-all
     - service: http_status:404
 ```
 
-Then modify the `cloudflared` service in `docker-compose.prod.yml` to use the local config:
+> **Why `localhost:3000`?** Caddy inside Docker is mapped to host port `3000` via the `docker-compose.prod.yml`. Since cloudflared runs on the host (not in Docker), it connects to Caddy via `localhost`.
 
-```yaml
-    cloudflared:
-        container_name: cloudflared
-        image: cloudflare/cloudflared:latest
-        restart: unless-stopped
-        command: tunnel --config /etc/cloudflared/config.yml run
-        volumes:
-            - ./cloudflared:/etc/cloudflared:ro
-        networks:
-            - dhiarlink_internal
-        depends_on:
-            - dhiarlink_caddy
+### 6.4 Configure DNS
+
+```bash
+# Point all three subdomains to the tunnel
+cloudflared tunnel route dns dhiarlink dhiarr.qzz.io
+cloudflared tunnel route dns dhiarlink app.dhiarr.qzz.io
+cloudflared tunnel route dns dhiarlink link.dhiarr.qzz.io
 ```
 
-And remove the `CLOUDFLARE_TUNNEL_TOKEN` from `.env` — you'd use a credentials file instead (generated via `cloudflared tunnel login` and `cloudflared tunnel create dhiarlink` on the host first).
+### 6.5 Enable and Start the Tunnel Service
+
+```bash
+# If using dashboard token (Option A), the service is already installed.
+# If using CLI (Option B), install as system service:
+sudo cloudflared service install
+sudo systemctl enable cloudflared
+sudo systemctl restart cloudflared
+```
+
+### 6.6 Verify the Tunnel
+
+```bash
+# Check tunnel status
+cloudflared tunnel info dhiarlink
+
+# Check the service is running
+sudo systemctl status cloudflared
+```
+
+> **If you already had a tunnel configured from the previous guide** (pointing to `http://dhiarlink_caddy:80`), you need to update the service URLs to `http://localhost:3000`. See the [Fixing an Existing Deployment](#fixing-an-existing-deployment) section at the bottom.
 
 ---
 
@@ -424,16 +468,16 @@ In **Cloudflare dashboard** → **Security** → **Settings**:
 ```bash
 cd /opt/dhiarlink
 
-# Build all images (Dhiarlink backend + dashboard)
+# Build all images (Dhiarlink backend + dashboard from your fork)
 docker compose -f docker-compose.prod.yml build
 ```
 
 This will:
 - Build the Dhiarlink backend image (PHP 8.5 + RoadRunner + all extensions)
-- Download the latest shlink-web-client release and build the dashboard image
-- Pull MySQL 8.0, Redis 7.4, Caddy 2, and cloudflared images
+- Build the dashboard image from your `../dhiarlink-web-client` fork (Node.js build + nginx)
+- Pull MySQL 8.0, Redis 7.4, and Caddy 2 images
 
-> **First build takes 5-15 minutes** depending on your LXC resources and internet speed.
+> **First build takes 10-20 minutes** depending on your LXC resources and internet speed. The dashboard build includes `npm ci` and Vite production build which can be slow.
 
 ### 8.2 Start the Stack
 
@@ -447,27 +491,31 @@ docker compose -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.prod.yml ps
 ```
 
-Expected output — all services should show `Up` or `running`:
+Expected output — all 5 services should show `Up` or `running`:
 
 ```
-NAME              STATUS
-dhiarlink         Up (healthy)
-dhiarlink_db      Up (healthy)
-dhiarlink_redis   Up (healthy)
-dhiarlink_caddy   Up
+NAME                 STATUS
+dhiarlink            Up (healthy)
+dhiarlink_db         Up (healthy)
+dhiarlink_redis      Up (healthy)
+dhiarlink_caddy      Up
 dhiarlink_dashboard  Up
-cloudflared       Up
 ```
+
+> Note: There is no `cloudflared` container — it runs as a system service on the host.
 
 ### 8.4 Check Logs for Errors
 
 ```bash
-# All services
+# All Docker services
 docker compose -f docker-compose.prod.yml logs -f
 
 # Individual service
 docker compose -f docker-compose.prod.yml logs -f dhiarlink
-docker compose -f docker-compose.prod.yml logs -f cloudflared
+docker compose -f docker-compose.prod.yml logs -f dhiarlink_dashboard
+
+# cloudflared (system service on host)
+sudo journalctl -u cloudflared -f
 ```
 
 ---
@@ -504,8 +552,8 @@ docker exec -it dhiarlink bin/cli api-key:generate
 # From inside the container
 docker exec -it dhiarlink curl -s http://127.0.0.1:8080/rest/health | head
 
-# Or from the host (if you temporarily expose the port for testing)
-curl -s http://localhost:8080/rest/health
+# Or through Caddy from the host (via the landing page hostname)
+curl -s -H "Host: dhiarr.qzz.io" http://localhost:3000/rest/health
 ```
 
 You should see a JSON response with `"status": "pass"`.
@@ -524,8 +572,10 @@ You should see the Dhiarlink landing page with the terminal/hacker theme.
 
 Open: **https://app.dhiarr.qzz.io**
 
-On first visit, the dashboard will ask you to configure a server:
-- **Shlink URL:** `https://dhiarr.qzz.io`
+If you set `DHIARLINK_SERVER_API_KEY` in your `.env`, the dashboard is **already pre-configured** with your Dhiarlink server. It should connect automatically and show the dashboard interface.
+
+If you didn't pre-configure, the dashboard will ask you to add a server:
+- **URL:** `https://dhiarr.qzz.io`
 - **API Key:** Paste the key generated in Step 9.2
 
 > The dashboard connects to the Dhiarlink REST API through your browser, so it uses the public URL (via Cloudflare Tunnel).
@@ -672,17 +722,22 @@ docker compose -f docker-compose.prod.yml up -d
 ### Update Docker Images
 
 ```bash
-# Pull latest base images (MySQL, Redis, Caddy, cloudflared)
+# Pull latest base images (MySQL, Redis, Caddy)
 docker compose -f docker-compose.prod.yml pull
 
 # Restart with new images
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-### Update shlink-web-client Dashboard
+### Update dhiarlink-web-client Dashboard
 
 ```bash
-# Rebuild just the dashboard image (fetches latest release)
+# Pull latest changes in the dashboard repo
+cd /opt/dhiarlink-web-client
+git pull
+
+# Rebuild and restart just the dashboard container
+cd /opt/dhiarlink
 docker compose -f docker-compose.prod.yml build dhiarlink_dashboard
 docker compose -f docker-compose.prod.yml up -d dhiarlink_dashboard
 ```
@@ -690,13 +745,16 @@ docker compose -f docker-compose.prod.yml up -d dhiarlink_dashboard
 ### View Logs
 
 ```bash
-# All services
+# All Docker services
 docker compose -f docker-compose.prod.yml logs -f
 
-# Specific service
+# Specific Docker service
 docker compose -f docker-compose.prod.yml logs -f dhiarlink
-docker compose -f docker-compose.prod.yml logs -f cloudflared
+docker compose -f docker-compose.prod.yml logs -f dhiarlink_dashboard
 docker compose -f docker-compose.prod.yml logs -f dhiarlink_db
+
+# Cloudflared (system service on host)
+sudo journalctl -u cloudflared -f
 ```
 
 ### Restart a Single Service
@@ -772,38 +830,47 @@ sudo systemctl status docker
 
 # Check container logs
 docker compose -f docker-compose.prod.yml logs dhiarlink
-docker compose -f docker-compose.prod.yml logs cloudflared
+docker compose -f docker-compose.prod.yml logs dhiarlink_dashboard
 
-# Check if ports are already in use (shouldn't be since we don't expose any)
-sudo ss -tlnp
+# Check if port 3000 is already in use (Caddy's host port)
+sudo ss -tlnp | grep 3000
 ```
 
 ### Cloudflare Tunnel not connecting
 
 ```bash
-# Check cloudflared logs
-docker compose -f docker-compose.prod.yml logs cloudflared
+# Check cloudflared system service logs
+sudo journalctl -u cloudflared -f
 
-# Verify the token is correct
-docker exec cloudflared cloudflared tunnel info
+# Check tunnel status
+cloudflared tunnel info dhiarlink
 
-# Re-create the tunnel token if needed (from Cloudflare dashboard)
+# Restart the tunnel service
+sudo systemctl restart cloudflared
+
+# Verify Caddy is reachable from the host
+curl -s http://localhost:3000
 ```
 
 ### "Connection refused" from cloudflared to Caddy
 
-The cloudflared container can't reach `dhiarlink_caddy`. This happens when Docker DNS resolution fails.
+The host's cloudflared can't reach Caddy at `localhost:3000`. This means the Caddy container's port mapping isn't working.
 
-**Fix 1:** Ensure both are on the same network:
+**Fix 1:** Verify Caddy is running and port 3000 is mapped:
 ```bash
-docker network inspect dhiarlink_dhiarlink_internal
+docker compose -f docker-compose.prod.yml ps dhiarlink_caddy
+# Should show: 0.0.0.0:3000->80/tcp
 ```
 
-**Fix 2:** Use the Caddy container's IP instead:
+**Fix 2:** Check if port 3000 is already in use:
 ```bash
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dhiarlink_caddy
+sudo ss -tlnp | grep 3000
 ```
-Then in the Cloudflare Tunnel dashboard, change the service URL to `http://<caddy-ip>:80`
+
+**Fix 3:** Restart Caddy:
+```bash
+docker compose -f docker-compose.prod.yml restart dhiarlink_caddy
+```
 
 ### Database connection refused
 
@@ -890,18 +957,111 @@ pct reboot <CTID>
 | `https://dhiarr.qzz.io` | Landing page |
 | `https://dhiarr.qzz.io/rest/health` | Health check endpoint |
 | `https://dhiarr.qzz.io/docs` | API documentation (Swagger) |
-| `https://app.dhiarr.qzz.io` | Dashboard (shlink-web-client) |
+| `https://app.dhiarr.qzz.io` | Dashboard (dhiarlink-web-client) |
 | `https://link.dhiarr.qzz.io/<code>` | Short URL redirects |
 
 ### Files Created/Modified for Production
 
 | File | Purpose |
-|------|---------|
-| `docker-compose.prod.yml` | Production Docker Compose stack |
+|------|--------|
+| `docker-compose.prod.yml` | Production Docker Compose stack (5 services) |
 | `data/infra/Caddyfile` | Caddy reverse proxy routing rules |
-| `data/infra/dashboard.Dockerfile` | Dashboard image build |
-| `data/infra/spa-nginx.conf` | Dashboard nginx SPA config |
+| `../dhiarlink-web-client/` | Dashboard built from your fork (sibling directory) |
 | `.env` | Your production environment variables (git-ignored) |
+| `~/.cloudflared/config.yml` | Cloudflare Tunnel config (on LXC host) |
+
+---
+
+## Fixing an Existing Deployment
+
+If you already ran the previous version of this guide (which used a cloudflared Docker container and shlink-web-client), here's what you need to change on your LXC:
+
+### Step 1: Stop the Old Stack
+
+```bash
+cd /opt/dhiarlink
+docker compose -f docker-compose.prod.yml down
+```
+
+### Step 2: Pull the Updated Files
+
+```bash
+cd /opt/dhiarlink
+git pull
+```
+
+This brings in the updated `docker-compose.prod.yml`, `Caddyfile`, and `.env.example`.
+
+### Step 3: Update Your .env
+
+Add these new variables to your `.env` (and remove `CLOUDFLARE_TUNNEL_TOKEN`):
+
+```env
+# REMOVE this line (no longer needed — cloudflared is a system service now):
+# CLOUDFLARE_TUNNEL_TOKEN=...
+
+# ADD these lines (dashboard pre-configuration):
+DHIARLINK_SERVER_URL=https://dhiarr.qzz.io
+DHIARLINK_SERVER_API_KEY=<your-api-key>
+DHIARLINK_SERVER_NAME=Dhiarlink
+DHIARLINK_SERVER_FORWARD_CREDENTIALS=false
+```
+
+### Step 4: Update Cloudflare Tunnel Config
+
+If your tunnel was configured with Docker container hostnames like `http://dhiarlink_caddy:80`, update them to use `localhost:3000`:
+
+**If using Zero Trust Dashboard:**
+1. Go to Cloudflare Zero Trust → Networks → Tunnels → your tunnel
+2. Edit each public hostname's Service URL from `http://dhiarlink_caddy:80` to `http://localhost:3000`
+
+**If using local config file (`~/.cloudflared/config.yml`):**
+```yaml
+ingress:
+    - hostname: dhiarr.qzz.io
+      service: http://localhost:3000     # ← was http://dhiarlink_caddy:80
+    - hostname: app.dhiarr.qzz.io
+      service: http://localhost:3000
+    - hostname: link.dhiarr.qzz.io
+      service: http://localhost:3000
+    - service: http_status:404
+```
+
+Then restart cloudflared:
+```bash
+sudo systemctl restart cloudflared
+```
+
+### Step 5: Rebuild and Start
+
+```bash
+cd /opt/dhiarlink
+
+# Clean up old images
+docker compose -f docker-compose.prod.yml down --rmi local
+
+# Rebuild everything (includes building dashboard from ../dhiarlink-web-client)
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Step 6: Verify
+
+```bash
+# Check all containers are running
+docker compose -f docker-compose.prod.yml ps
+
+# Check Caddy is accessible from the host
+curl -s http://localhost:3000
+
+# Check cloudflared is connected
+sudo systemctl status cloudflared
+```
+
+Then test all three URLs in your browser:
+- https://dhiarr.qzz.io (landing page)
+- https://app.dhiarr.qzz.io (dashboard — should be pre-configured)
+- https://link.dhiarr.qzz.io/<any-short-code> (redirect)
 
 ---
 
