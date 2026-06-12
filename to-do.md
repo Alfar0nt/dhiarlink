@@ -4,6 +4,10 @@
 
 ---
 
+1. Update the landing page terminal animation, because currently in android/mobile device, it will extend far to the right, making it has 2 scrolls horizontal and vertical.
+2. Fix deployement and source code overall
+3. Update branding and links like github in the landing page, because currently it still shows the shlink.
+
 ## 1. Core Branding Files to Change ✅ DONE
 
 These are all the files that contain user-facing or cosmetic "Shlink" branding that should be updated to "Dhiarlink".
