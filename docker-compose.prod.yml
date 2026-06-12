@@ -53,7 +53,7 @@ services:
             # Behind Cloudflare Tunnel — trust proxy headers for real client IP
             TRUSTED_PROXIES: ${TRUSTED_PROXIES:-1}
             # CORS — allow the dashboard origin
-            CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-https://app\.dhiarr\.qzz\.io}
+            CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-https://app.dhiarr.qzz.io}
         volumes:
             - dhiarlink_data:/etc/dhiarlink/data
         networks:

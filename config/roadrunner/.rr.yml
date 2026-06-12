@@ -32,9 +32,9 @@ jobs:
       idle_ttl: 30s
       max_worker_memory: 256
       exec_ttl: 300s
-  consume: ['dhiarlink']
+  consume: ['shlink']
   pipelines:
-    dhiarlink:
+    shlink:
       driver: memory
       config:
         priority: 10

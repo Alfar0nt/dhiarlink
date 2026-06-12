@@ -300,7 +300,7 @@ REDIS_PUB_SUB_ENABLED=true
 TRUSTED_PROXIES=1
 
 # === CORS — allow the dashboard to call the API ===
-CORS_ALLOW_ORIGIN=https://app\.dhiarr\.qzz\.io
+CORS_ALLOW_ORIGIN=https://app.dhiarr.qzz.io
 
 # === Dashboard Pre-configuration ===
 # These auto-configure the server connection in the dashboard
@@ -316,7 +316,7 @@ DHIARLINK_VERSION=1.0.0
 DHIARLINK_RUNTIME=rr
 ```
 
-> **Important:** The `CORS_ALLOW_ORIGIN` value uses regex escaping. The backslashes before the dots (`\.`) are intentional — they match literal dots in the domain name.
+> **Important:** The `CORS_ALLOW_ORIGIN` value is an exact match (or comma-separated list of origins) without regex escaping. Do NOT include backslashes before the dots.
 
 > **Note:** `CLOUDFLARE_TUNNEL_TOKEN` is **not needed** in `.env` — cloudflared runs as a system service on the host and is configured separately (Step 6).
 
@@ -892,7 +892,7 @@ docker exec -it dhiarlink sh -c "mysql -h dhiarlink_db -u dhiarlink -p"
    ```
 4. Check CORS is configured correctly in `.env`:
    ```env
-   CORS_ALLOW_ORIGIN=https://app\.dhiarr\.qzz\.io
+   CORS_ALLOW_ORIGIN=https://app.dhiarr.qzz.io
    ```
 
 ### Short URLs return 404
