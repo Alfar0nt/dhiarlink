@@ -163,7 +163,7 @@ services:
             dockerfile: ./Dockerfile
         environment:
             # Pre-configure the Dhiarlink server connection
-            DHIARLINK_SERVER_URL: ${DHIARLINK_SERVER_URL:-https://dhiarr.qzz.io}
+            DHIARLINK_SERVER_URL: ${DHIARLINK_SERVER_URL:-https://www.dhiarr.qzz.io}
             DHIARLINK_SERVER_API_KEY: ${DHIARLINK_SERVER_API_KEY:-}
             DHIARLINK_SERVER_NAME: ${DHIARLINK_SERVER_NAME:-Dhiarlink}
             DHIARLINK_SERVER_FORWARD_CREDENTIALS: ${DHIARLINK_SERVER_FORWARD_CREDENTIALS:-false}

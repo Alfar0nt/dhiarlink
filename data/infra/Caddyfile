@@ -6,7 +6,7 @@
 # handles TLS termination at the edge.
 #
 # Hostname routing:
-#   dhiarr.qzz.io      → Dhiarlink backend (landing page, /rest/* API)
+#   www.dhiarr.qzz.io  → Dhiarlink backend (landing page, /rest/* API)
 #   app.dhiarr.qzz.io  → dhiarlink-web-client dashboard (port 8080) (React SPA)
 #   link.dhiarr.qzz.io → Dhiarlink backend (short URL redirects)
 # ==============================================================================
@@ -18,9 +18,9 @@
     admin off
 }
 
-# --- dhiarr.qzz.io — Landing page + REST API ---------------------------------
+# --- www.dhiarr.qzz.io — Landing page + REST API -----------------------------
 :80 {
-    @dhiarr host dhiarr.qzz.io
+    @dhiarr host www.dhiarr.qzz.io
     handle @dhiarr {
         reverse_proxy dhiarlink:8080 {
             # Forward the original host and protocol so Dhiarlink knows it's behind HTTPS

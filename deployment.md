@@ -35,7 +35,7 @@ This guide walks you through deploying Dhiarlink from zero to fully operational 
 
 ```
                           Cloudflare Edge (TLS termination)
-                          ├── dhiarr.qzz.io       (landing page)
+                          ├── www.dhiarr.qzz.io   (landing page)
                           ├── app.dhiarr.qzz.io   (dashboard UI)
                           └── link.dhiarr.qzz.io  (short URL redirects)
                                     │
@@ -305,7 +305,7 @@ CORS_ALLOW_ORIGIN=https://app\.dhiarr\.qzz\.io
 # === Dashboard Pre-configuration ===
 # These auto-configure the server connection in the dashboard
 # so users don't have to manually add it on first visit.
-DHIARLINK_SERVER_URL=https://dhiarr.qzz.io
+DHIARLINK_SERVER_URL=https://www.dhiarr.qzz.io
 DHIARLINK_SERVER_API_KEY=<your-generated-api-key>
 DHIARLINK_SERVER_NAME=Dhiarlink
 DHIARLINK_SERVER_FORWARD_CREDENTIALS=false
@@ -371,8 +371,8 @@ tunnel: <your-tunnel-id-or-name>
 credentials-file: /home/<user>/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
-    # Landing page (dhiarr.qzz.io)
-    - hostname: dhiarr.qzz.io
+    # Landing page (www.dhiarr.qzz.io)
+    - hostname: www.dhiarr.qzz.io
       service: http://localhost:3000
 
     # Dashboard (app.dhiarr.qzz.io)
@@ -393,7 +393,7 @@ ingress:
 
 ```bash
 # Point all three subdomains to the tunnel
-cloudflared tunnel route dns dhiarlink dhiarr.qzz.io
+cloudflared tunnel route dns dhiarlink www.dhiarr.qzz.io
 cloudflared tunnel route dns dhiarlink app.dhiarr.qzz.io
 cloudflared tunnel route dns dhiarlink link.dhiarr.qzz.io
 ```
@@ -553,7 +553,7 @@ docker exec -it dhiarlink bin/cli api-key:generate
 docker exec -it dhiarlink curl -s http://127.0.0.1:8080/rest/health | head
 
 # Or through Caddy from the host (via the landing page hostname)
-curl -s -H "Host: dhiarr.qzz.io" http://localhost:3000/rest/health
+curl -s -H "Host: www.dhiarr.qzz.io" http://localhost:3000/rest/health
 ```
 
 You should see a JSON response with `"status": "pass"`.
@@ -564,7 +564,7 @@ You should see a JSON response with `"status": "pass"`.
 
 ### 10.1 Landing Page
 
-Open in your browser: **https://dhiarr.qzz.io**
+Open in your browser: **https://www.dhiarr.qzz.io**
 
 You should see the Dhiarlink landing page with the terminal/hacker theme.
 
@@ -575,7 +575,7 @@ Open: **https://app.dhiarr.qzz.io**
 If you set `DHIARLINK_SERVER_API_KEY` in your `.env`, the dashboard is **already pre-configured** with your Dhiarlink server. It should connect automatically and show the dashboard interface.
 
 If you didn't pre-configure, the dashboard will ask you to add a server:
-- **URL:** `https://dhiarr.qzz.io`
+- **URL:** `https://www.dhiarr.qzz.io`
 - **API Key:** Paste the key generated in Step 9.2
 
 > The dashboard connects to the Dhiarlink REST API through your browser, so it uses the public URL (via Cloudflare Tunnel).
@@ -647,7 +647,7 @@ Enables live visit notifications in the dashboard (new visits appear without ref
 2. **Update Caddy** to route Mercure through the proxy:
    Add to the Caddyfile:
    ```
-       @mercure host dhiarr.qzz.io path /mercure*
+       @mercure host www.dhiarr.qzz.io path /mercure*
        handle @mercure {
            reverse_proxy dhiarlink_mercure:80 {
                header_up X-Forwarded-Host {host}
@@ -660,7 +660,7 @@ Enables live visit notifications in the dashboard (new visits appear without ref
    ```env
    MERCURE_ENABLED=true
    MERCURE_JWT_SECRET=$(openssl rand -base64 32)
-   MERCURE_PUBLIC_HUB_URL=https://dhiarr.qzz.io/mercure
+   MERCURE_PUBLIC_HUB_URL=https://www.dhiarr.qzz.io/mercure
    MERCURE_INTERNAL_HUB_URL=http://dhiarlink_mercure
    ```
 
@@ -884,11 +884,11 @@ docker exec -it dhiarlink sh -c "mysql -h dhiarlink_db -u dhiarlink -p"
 
 ### Dashboard shows "Could not connect to Shlink"
 
-1. Verify the API URL you entered is `https://dhiarr.qzz.io` (not `http://`)
+1. Verify the API URL you entered is `https://www.dhiarr.qzz.io` (not `http://`)
 2. Check the API key is correct
 3. Test the API directly:
    ```bash
-   curl -H "X-Api-Key: YOUR_KEY" https://dhiarr.qzz.io/rest/health
+   curl -H "X-Api-Key: YOUR_KEY" https://www.dhiarr.qzz.io/rest/health
    ```
 4. Check CORS is configured correctly in `.env`:
    ```env
@@ -954,9 +954,9 @@ pct reboot <CTID>
 
 | URL | Purpose |
 |-----|---------|
-| `https://dhiarr.qzz.io` | Landing page |
-| `https://dhiarr.qzz.io/rest/health` | Health check endpoint |
-| `https://dhiarr.qzz.io/docs` | API documentation (Swagger) |
+| `https://www.dhiarr.qzz.io` | Landing page |
+| `https://www.dhiarr.qzz.io/rest/health` | Health check endpoint |
+| `https://www.dhiarr.qzz.io/docs` | API documentation (Swagger) |
 | `https://app.dhiarr.qzz.io` | Dashboard (dhiarlink-web-client) |
 | `https://link.dhiarr.qzz.io/<code>` | Short URL redirects |
 
@@ -1001,7 +1001,7 @@ Add these new variables to your `.env` (and remove `CLOUDFLARE_TUNNEL_TOKEN`):
 # CLOUDFLARE_TUNNEL_TOKEN=...
 
 # ADD these lines (dashboard pre-configuration):
-DHIARLINK_SERVER_URL=https://dhiarr.qzz.io
+DHIARLINK_SERVER_URL=https://www.dhiarr.qzz.io
 DHIARLINK_SERVER_API_KEY=<your-api-key>
 DHIARLINK_SERVER_NAME=Dhiarlink
 DHIARLINK_SERVER_FORWARD_CREDENTIALS=false
@@ -1018,7 +1018,7 @@ If your tunnel was configured with Docker container hostnames like `http://dhiar
 **If using local config file (`~/.cloudflared/config.yml`):**
 ```yaml
 ingress:
-    - hostname: dhiarr.qzz.io
+    - hostname: www.dhiarr.qzz.io
       service: http://localhost:3000     # ← was http://dhiarlink_caddy:80
     - hostname: app.dhiarr.qzz.io
       service: http://localhost:3000
@@ -1059,7 +1059,7 @@ sudo systemctl status cloudflared
 ```
 
 Then test all three URLs in your browser:
-- https://dhiarr.qzz.io (landing page)
+- https://www.dhiarr.qzz.io (landing page)
 - https://app.dhiarr.qzz.io (dashboard — should be pre-configured)
 - https://link.dhiarr.qzz.io/<any-short-code> (redirect)
 
