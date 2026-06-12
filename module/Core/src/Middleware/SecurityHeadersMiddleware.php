@@ -38,13 +38,13 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
      * CSP that's safe for JSON API responses and the error/landing HTML pages.
      * - default-src 'none' blocks all resource loading by default
      * - style-src 'unsafe-inline' needed for inline CSS in error/landing pages
+     * - script-src 'unsafe-inline' needed for landing page interactions (typing animation, hamburger menu, counters)
      * - img-src 'self' data: allows favicons and data URIs
-     * - script-src 'none' blocks all inline/external scripts (XSS mitigation)
      * - font-src 'self' allows self-hosted fonts if any
      * - frame-ancestors 'none' reinforces X-Frame-Options for modern browsers
      */
     private const string CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; "
-        . "script-src 'none'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+        . "script-src 'unsafe-inline'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {

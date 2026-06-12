@@ -112,6 +112,7 @@ return [
             Action\RedirectAction::class => ConfigAbstractFactory::class,
             Action\PixelAction::class => ConfigAbstractFactory::class,
             Action\RobotsAction::class => ConfigAbstractFactory::class,
+            Action\LandingAction::class => ConfigAbstractFactory::class,
 
             EventDispatcher\PublishingUpdatesGenerator::class => ConfigAbstractFactory::class,
 
@@ -217,6 +218,7 @@ return [
         ],
         Action\PixelAction::class => [ShortUrl\ShortUrlResolver::class, Visit\RequestTracker::class],
         Action\RobotsAction::class => [Crawling\CrawlingHelper::class, Config\Options\RobotsOptions::class],
+        Action\LandingAction::class => [Config\Options\AppOptions::class],
 
         ShortUrl\Resolver\PersistenceShortUrlRelationResolver::class => [
             'em',

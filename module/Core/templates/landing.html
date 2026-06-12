@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Dhiarlink — A self-hosted URL shortener with a powerful REST API, detailed analytics, and lightning-fast redirects.">
+    <title>Dhiarlink — Self-Hosted URL Shortener</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <style>
+        /* === Design Tokens === */
+        :root {
+            --bg: #0f1419; --bg-card: #192028; --bg-card-hover: #1e2730;
+            --accent: #4a9a8e; --accent-hover: #5cc4b3; --accent-dim: rgba(74,154,142,.15);
+            --text: #a8b2c1; --text-bright: #d4dce8; --text-muted: #6b7a8d;
+            --border: #2a3440; --success: #4ade80; --error: #f87171;
+            --font-mono: "JetBrains Mono","Fira Code","SF Mono","Cascadia Code","Consolas",monospace;
+            --max-w: 1100px; --nav-h: 60px;
+            --ease: cubic-bezier(.4,0,.2,1);
+        }
+        /* === Reset === */
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+        body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+        a{color:var(--accent);text-decoration:none;transition:color .2s var(--ease)}
+        a:hover,a:focus-visible{color:var(--accent-hover)}
+        a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+        img{max-width:100%;display:block}
+        ul{list-style:none}
+
+        /* === Utilities === */
+        .container{width:100%;max-width:var(--max-w);margin:0 auto;padding:0 1.25rem}
+        .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+        .accent{color:var(--accent)}
+        .muted{color:var(--text-muted)}
+
+        /* === Navbar === */
+        .nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,20,25,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);height:var(--nav-h)}
+        .nav__inner{display:flex;align-items:center;justify-content:space-between;height:100%}
+        .nav__logo{font-size:1.15rem;font-weight:700;color:var(--text-bright);letter-spacing:-.5px;display:flex;align-items:center;gap:.5rem}
+        .nav__logo span{color:var(--accent)}
+        .nav__links{display:flex;gap:1.5rem;align-items:center}
+        .nav__links a{font-size:.85rem;color:var(--text-muted);letter-spacing:.3px}
+        .nav__links a:hover{color:var(--accent)}
+        .nav__cta{padding:.4rem 1rem;border:1px solid var(--accent);border-radius:5px;color:var(--accent)!important;font-size:.8rem;font-weight:600;transition:all .2s var(--ease)}
+        .nav__cta:hover{background:var(--accent-dim);color:var(--accent-hover)!important}
+        .hamburger{display:none;background:none;border:none;color:var(--text);cursor:pointer;padding:.5rem;font-size:1.4rem;font-family:var(--font-mono)}
+
+        /* === Hero === */
+        .hero{min-height:100vh;display:flex;align-items:center;padding-top:var(--nav-h)}
+        .hero__grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
+        .hero__text h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.15;color:var(--text-bright);margin-bottom:1rem}
+        .hero__text h1 .accent{display:inline}
+        .hero__text p{font-size:1rem;color:var(--text-muted);margin-bottom:2rem;max-width:480px}
+        .hero__actions{display:flex;gap:1rem;flex-wrap:wrap}
+        .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.65rem 1.5rem;border-radius:6px;font-family:var(--font-mono);font-size:.875rem;font-weight:600;transition:all .2s var(--ease);cursor:pointer;border:1px solid transparent}
+        .btn--primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+        .btn--primary:hover{background:var(--accent-hover);color:var(--bg);box-shadow:0 0 25px rgba(74,154,142,.3)}
+        .btn--outline{background:transparent;color:var(--accent);border-color:var(--accent)}
+        .btn--outline:hover{background:var(--accent-dim);color:var(--accent-hover);border-color:var(--accent-hover)}
+
+        /* Terminal card in hero */
+        .terminal{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+        .terminal__bar{display:flex;align-items:center;gap:6px;padding:10px 14px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--border)}
+        .terminal__dot{width:10px;height:10px;border-radius:50%}
+        .terminal__dot--r{background:var(--error)}.terminal__dot--y{background:#fbbf24}.terminal__dot--g{background:var(--success)}
+        .terminal__title{flex:1;text-align:center;font-size:.7rem;color:var(--text-muted)}
+        .terminal__body{padding:1.5rem;font-size:.82rem;line-height:1.8;min-height:180px}
+        .terminal__line{white-space:nowrap;overflow:hidden}
+        .terminal__prompt{color:var(--accent);font-weight:700}
+        .terminal__cursor{display:inline-block;width:8px;height:1.1em;background:var(--accent);vertical-align:text-bottom;animation:blink 1s step-end infinite;margin-left:2px}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+        /* === Stats === */
+        .stats{padding:5rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+        .stats__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;text-align:center}
+        .stat__number{font-size:clamp(2rem,4vw,3rem);font-weight:800;color:var(--accent);line-height:1}
+        .stat__label{font-size:.85rem;color:var(--text-muted);margin-top:.5rem}
+
+        /* === Features === */
+        .features{padding:5rem 0}
+        .features__header{text-align:center;margin-bottom:3rem}
+        .features__header h2{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:700;color:var(--text-bright);margin-bottom:.75rem}
+        .features__header p{color:var(--text-muted);max-width:550px;margin:0 auto;font-size:.95rem}
+        .features__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem}
+        .feature-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:2rem 1.5rem;transition:all .25s var(--ease)}
+        .feature-card:hover{border-color:var(--accent);background:var(--bg-card-hover);transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+        .feature-card__icon{font-size:1.8rem;margin-bottom:1rem}
+        .feature-card h3{font-size:1rem;font-weight:700;color:var(--text-bright);margin-bottom:.5rem}
+        .feature-card p{font-size:.85rem;color:var(--text-muted);line-height:1.6}
+
+        /* === Social === */
+        .social{padding:4rem 0;text-align:center}
+        .social h2{font-size:1.2rem;color:var(--text-bright);margin-bottom:1.5rem;font-weight:600}
+        .social__links{display:flex;justify-content:center;gap:1.5rem;flex-wrap:wrap}
+        .social__link{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1.2rem;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:.85rem;transition:all .2s var(--ease)}
+        .social__link:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+        .social__link svg{width:18px;height:18px;fill:currentColor}
+
+        /* === Footer === */
+        .footer{padding:2rem 0;border-top:1px solid var(--border);text-align:center}
+        .footer p{font-size:.75rem;color:var(--text-muted)}
+        .footer .accent{font-weight:600}
+
+        /* === Mobile Nav === */
+        .nav__mobile{display:none;position:fixed;top:var(--nav-h);left:0;right:0;bottom:0;background:rgba(15,20,25,.98);z-index:99;flex-direction:column;align-items:center;justify-content:center;gap:2rem}
+        .nav__mobile.active{display:flex}
+        .nav__mobile a{font-size:1.1rem;color:var(--text);padding:.5rem 1rem}
+
+        /* === Responsive === */
+        @media(max-width:900px){
+            .hero__grid{grid-template-columns:1fr;text-align:center}
+            .hero__text p{margin-left:auto;margin-right:auto}
+            .hero__actions{justify-content:center}
+            .terminal{max-width:500px;margin:0 auto}
+        }
+        @media(max-width:640px){
+            .nav__links{display:none}
+            .hamburger{display:block}
+            .stats__grid{grid-template-columns:1fr;gap:1.5rem}
+            .features__grid{grid-template-columns:1fr}
+        }
+
+        /* === Reduced Motion === */
+        @media(prefers-reduced-motion:reduce){
+            *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+            html{scroll-behavior:auto}
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav" aria-label="Main navigation">
+        <div class="container nav__inner">
+            <a href="/" class="nav__logo" aria-label="Dhiarlink home"><span>&gt;_</span> dhiarlink</a>
+            <div class="nav__links" role="menubar">
+                <a href="#features" role="menuitem">Features</a>
+                <a href="/rest/health" role="menuitem">Status</a>
+                <a href="https://github.com/shlinkio/shlink" target="_blank" rel="noopener" role="menuitem" aria-label="GitHub (opens in new tab)">GitHub</a>
+                <a href="https://app.dhiarr.qzz.io" class="nav__cta" role="menuitem">Dashboard</a>
+            </div>
+            <button class="hamburger" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobile-nav" onclick="toggleMenu()">&#9776;</button>
+        </div>
+        <div class="nav__mobile" id="mobile-nav" role="menu">
+            <a href="#features" role="menuitem" onclick="toggleMenu()">Features</a>
+            <a href="/rest/health" role="menuitem" onclick="toggleMenu()">Status</a>
+            <a href="https://github.com/shlinkio/shlink" target="_blank" rel="noopener" role="menuitem" onclick="toggleMenu()">GitHub</a>
+            <a href="https://app.dhiarr.qzz.io" class="btn btn--primary" role="menuitem" onclick="toggleMenu()">Dashboard</a>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero" aria-labelledby="hero-heading">
+            <div class="container hero__grid">
+                <div class="hero__text">
+                    <h1 id="hero-heading">Shorten links.<br><span class="accent">Track everything.</span></h1>
+                    <p>A self-hosted URL shortener with a powerful REST API, real-time analytics, and lightning-fast redirects. Your links, your data, your server.</p>
+                    <div class="hero__actions">
+                        <a href="https://app.dhiarr.qzz.io" class="btn btn--primary">Open Dashboard &rarr;</a>
+                        <a href="#features" class="btn btn--outline">Learn More</a>
+                    </div>
+                </div>
+                <div class="terminal" aria-hidden="true">
+                    <div class="terminal__bar">
+                        <span class="terminal__dot terminal__dot--r"></span>
+                        <span class="terminal__dot terminal__dot--y"></span>
+                        <span class="terminal__dot terminal__dot--g"></span>
+                        <span class="terminal__title">dhiarlink — terminal</span>
+                    </div>
+                    <div class="terminal__body">
+                        <div class="terminal__line"><span class="terminal__prompt">$ </span><span id="typed-cmd"></span><span class="terminal__cursor" id="cursor"></span></div>
+                        <div class="terminal__line muted" id="typed-response" style="margin-top:.8rem;opacity:0"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Section -->
+        <section class="stats" aria-label="Service statistics">
+            <div class="container">
+                <div class="stats__grid">
+                    <div>
+                        <div class="stat__number" data-target="12480" data-suffix="+">0</div>
+                        <div class="stat__label">URLs Shortened</div>
+                    </div>
+                    <div>
+                        <div class="stat__number" data-target="89200" data-suffix="+">0</div>
+                        <div class="stat__label">Redirects Served</div>
+                    </div>
+                    <div>
+                        <div class="stat__number" data-target="99.9" data-suffix="%" data-decimal="true">0</div>
+                        <div class="stat__label">Uptime</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features" id="features" aria-labelledby="features-heading">
+            <div class="container">
+                <div class="features__header">
+                    <h2 id="features-heading">Built for developers.<br>Loved by everyone.</h2>
+                    <p>Everything you need to shorten URLs, track clicks, and understand your traffic — all self-hosted and private.</p>
+                </div>
+                <div class="features__grid">
+                    <article class="feature-card">
+                        <div class="feature-card__icon" aria-hidden="true">&#9889;</div>
+                        <h3>Lightning Fast Redirects</h3>
+                        <p>RoadRunner keeps PHP workers alive for sub-millisecond response times. No cold starts, no overhead. Every redirect is instant.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-card__icon" aria-hidden="true">&#128202;</div>
+                        <h3>Detailed Analytics</h3>
+                        <p>Track every visit with IP geolocation, referrer sources, device types, and browser info. Real-time updates via Mercure push events.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-card__icon" aria-hidden="true">&#128268;</div>
+                        <h3>Powerful REST API</h3>
+                        <p>Full-featured API with API key auth, CORS support, and comprehensive Swagger docs. Automate everything with a single HTTP call.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-card__icon" aria-hidden="true">&#128274;</div>
+                        <h3>Self-Hosted &amp; Private</h3>
+                        <p>Your links, your data, your server. No third-party tracking, no ads, no data harvesting. Deploy with Docker in minutes.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-card__icon" aria-hidden="true">&#128295;</div>
+                        <h3>Custom Domains</h3>
+                        <p>Use your own short domain for branded links. Support for multiple domains, custom slugs, and QR code generation.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-card__icon" aria-hidden="true">&#128640;</div>
+                        <h3>CLI &amp; Automation</h3>
+                        <p>Manage links from the terminal with the built-in CLI tool. Import from other services, batch-create URLs, and script your workflow.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- Social Links -->
+        <section class="social" aria-label="Social links">
+            <div class="container">
+                <h2>Connect</h2>
+                <div class="social__links">
+                    <a href="https://github.com/shlinkio/shlink" target="_blank" rel="noopener" class="social__link" aria-label="GitHub repository">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                        GitHub
+                    </a>
+                    <a href="https://x.com" target="_blank" rel="noopener" class="social__link" aria-label="Follow on X (Twitter)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        X / Twitter
+                    </a>
+                    <a href="https://mastodon.social" target="_blank" rel="noopener" class="social__link" aria-label="Follow on Mastodon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.268 5.313c-.35-2.578-2.617-4.61-5.304-5.004C17.51.242 15.792 0 11.813 0h-.03c-3.98 0-4.835.242-5.288.309C3.882.692 1.496 2.518.917 5.127.64 6.412.61 7.837.661 9.143c.074 1.874.088 3.745.26 5.611.118 1.24.325 2.47.62 3.68.55 2.237 2.777 4.098 4.96 4.857 2.336.792 4.849.923 7.256.38.265-.061.527-.132.786-.213.585-.184 1.27-.39 1.774-.753a.057.057 0 00.023-.043v-1.809a.052.052 0 00-.02-.041.053.053 0 00-.046-.01 20.282 20.282 0 01-4.709.547c-2.73 0-3.463-1.284-3.674-1.818a5.593 5.593 0 01-.319-1.433.053.053 0 01.066-.054 19.648 19.648 0 004.636.536c.564 0 1.127-.027 1.687-.067 1.867-.134 3.87-.333 5.65-.907a.052.052 0 00.038-.05c.36-2.903.34-7.089-.038-9.833zm-3.606 8.24h-2.384v-5.294c0-1.143-.482-1.724-1.446-1.724-1.067 0-1.601.69-1.601 2.054v2.925H11.85V8.59c0-1.365-.534-2.055-1.602-2.055-.964 0-1.446.58-1.446 1.724v5.294H6.418V8.34c0-1.143.291-2.052.874-2.727.602-.675 1.388-1.021 2.362-1.021 1.124 0 1.974.432 2.535 1.296l.547.918.547-.918c.561-.864 1.411-1.296 2.535-1.296.974 0 1.76.346 2.362 1.021.583.675.874 1.584.874 2.727v5.509z"/></svg>
+                        Mastodon
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by <span class="accent">Dhiarlink</span> {{version}} &mdash; A fork of <a href="https://shlink.io" target="_blank" rel="noopener">Shlink</a></p>
+        </div>
+    </footer>
+
+    <script>
+    /* === Mobile menu toggle === */
+    function toggleMenu(){
+        var m=document.getElementById('mobile-nav'),b=document.querySelector('.hamburger');
+        var open=m.classList.toggle('active');
+        b.setAttribute('aria-expanded',open);
+        b.innerHTML=open?'&times;':'&#9776;';
+    }
+
+    /* === Typing animation === */
+    (function(){
+        var cmd='curl -X POST https://dhiarr.qzz.io/rest/v3/short-urls/shorten';
+        var resp='{"shortUrl":"https://dhiarr.qzz.io/xK2","longUrl":"https://github.com/..."}';
+        var el=document.getElementById('typed-cmd'),cur=document.getElementById('cursor'),re=document.getElementById('typed-response');
+        var i=0,rmotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+        if(rmotion){el.textContent=cmd;re.textContent=resp;re.style.opacity='1';cur.style.display='none';return}
+        function type(){if(i<cmd.length){el.textContent+=cmd[i];i++;setTimeout(type,30+Math.random()*30)}else{setTimeout(function(){re.textContent=resp;re.style.opacity='1';re.style.transition='opacity .4s';setTimeout(function(){cur.style.display='none'},800)},400)}}
+        setTimeout(type,600);
+    })();
+
+    /* === Stats counter animation (IntersectionObserver) === */
+    (function(){
+        var nums=document.querySelectorAll('.stat__number');
+        if(!nums.length)return;
+        var rmotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+        function animateNum(el){
+            var target=parseFloat(el.dataset.target),suffix=el.dataset.suffix||'',dec=el.dataset.decimal==='true';
+            if(rmotion){el.textContent=(dec?target.toFixed(1):Math.floor(target).toLocaleString())+suffix;return}
+            var dur=1600,start=performance.now();
+            function step(now){
+                var p=Math.min((now-start)/dur,1);
+                p=1-Math.pow(1-p,3);
+                var val=p*target;
+                el.textContent=(dec?val.toFixed(1):Math.floor(val).toLocaleString())+suffix;
+                if(p<1)requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+        if('IntersectionObserver' in window){
+            var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){animateNum(e.target);obs.unobserve(e.target)}})},{threshold:.3});
+            nums.forEach(function(n){obs.observe(n)});
+        }else{nums.forEach(animateNum)}
+    })();
+    </script>
+</body>
+</html>

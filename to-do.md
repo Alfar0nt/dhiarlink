@@ -112,7 +112,7 @@ These are all the files that contain user-facing or cosmetic "Shlink" branding t
 
 ---
 
-## 3. Theme: Terminal / Hacker Aesthetic — Deep Ocean Palette
+## 3. Theme: Terminal / Hacker Aesthetic — Deep Ocean Palette ✅ DONE
 
 ### Design Tokens
 
@@ -131,9 +131,9 @@ Font:          "JetBrains Mono", "Fira Code", "SF Mono", monospace
 
 ### Files to Create / Modify
 
-#### A. Landing Page (NEW)
+#### A. Landing Page (NEW) ✅ DONE
 
-Create `module/Core/templates/landing.html` — a full landing page with:
+Created `module/Core/templates/landing.html` — a full landing page with:
 
 - **Navigation bar** with Dhiarlink logo/name, nav links (API Docs, GitHub, Status), and a responsive hamburger menu for mobile
 - **Hero section** with a terminal-style typing animation showing `curl -X POST https://dhiar.link/rest/v3/short-urls/shorten`
@@ -160,7 +160,7 @@ Create `module/Core/templates/landing.html` — a full landing page with:
 - CSS transitions on hover/focus states (0.2s ease)
 - Hamburger menu toggle with CSS + minimal JS
 
-#### B. Error Pages (MODIFY)
+#### B. Error Pages (MODIFY) ✅ DONE
 
 Modify both `module/Core/templates/404.html` and `module/Core/templates/invalid-short-code.html`:
 
@@ -171,20 +171,20 @@ Modify both `module/Core/templates/404.html` and `module/Core/templates/invalid-
 - Keep it lightweight (no external dependencies)
 - Ensure WCAG contrast ratios
 
-#### C. Health Endpoint Branding (MODIFY)
+#### C. Health Endpoint Branding (MODIFY) ✅ DONE
 
 `module/Rest/src/Action/HealthAction.php`:
 - Change `links.about` and `links.project` to Dhiarlink URLs
 - Consider adding: `service_name`, `uptime_seconds`, `checks.redis` if Redis is configured
 
-#### D. Swagger Docs Branding (MODIFY)
+#### D. Swagger Docs Branding (MODIFY) ✅ DONE
 
 `docs/swagger/swagger.json`:
 - Update `info.title` → `"Dhiarlink"`
 - Update `info.description` → `"Dhiarlink — the self-hosted URL shortener"`
 - Update `externalDocs` URL
 
-#### E. Favicon (REPLACE)
+#### E. Favicon (REPLACE) ✅ DONE
 
 `public/favicon.ico`:
 - Replace with a terminal-green themed icon (e.g., a `>_` prompt symbol or a link/chain icon in teal `#4a9a8e` on dark `#0f1419`)
@@ -208,10 +208,10 @@ All HTML templates should follow these conventions:
 | # | Task | Status |
 |---|------|--------|
 | 1 | Define CSS custom properties (design tokens) as a shared snippet | ✅ Done — `module/Core/templates/_theme.css` |
-| 2 | Create the landing page template (`landing.html`) | ⬜ Pending (Section 3) |
+| 2 | Create the landing page template (`landing.html`) | ✅ Done — Full page with nav, hero typing animation, stats counters, features grid, social links, footer. Responsive + WCAG AA. |
 | 3 | Redesign the 404 error page | ✅ Done (Section 1, item #6) |
 | 4 | Redesign the invalid-short-code error page | ✅ Done (Section 1, item #7) |
-| 5 | Create a new `LandingAction` handler to serve the landing page at base URL | ⬜ Pending (Section 3) |
+| 5 | Create a new `LandingAction` handler to serve the landing page at base URL | ✅ Done — `LandingAction.php` reads template, injects version, serves at `/`. Registered in routes + dependencies. |
 | 6 | Update `AppOptions.php` name to Dhiarlink | ✅ Done (Section 1, item #1) |
 | 7 | Update `HealthAction.php` links | ✅ Done (Section 1, item #8) |
 | 8 | Update `swagger.json` branding | ✅ Done (Section 1, items #9–10) |

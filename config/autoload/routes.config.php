@@ -82,6 +82,14 @@ return (static function (): array {
 
             // Non-rest
             [
+                'name' => CoreAction\LandingAction::class,
+                'path' => '/',
+                'middleware' => [
+                    CoreAction\LandingAction::class,
+                ],
+                'allowed_methods' => [RequestMethodInterface::METHOD_GET],
+            ],
+            [
                 'name' => CoreAction\RobotsAction::class,
                 'path' => '/robots.txt',
                 'middleware' => [
