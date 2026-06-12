@@ -277,8 +277,8 @@
 
     /* === Typing animation === */
     (function(){
-        var cmd='curl -X POST https://dhiarr.qzz.io/rest/v3/short-urls/shorten';
-        var resp='{"shortUrl":"https://dhiarr.qzz.io/xK2","longUrl":"https://github.com/..."}';
+        var cmd='curl -X POST https://www.dhiarr.qzz.io/rest/v3/short-urls/shorten';
+        var resp='{"shortUrl":"https://link.dhiarr.qzz.io/xK2","longUrl":"https://github.com/..."}';
         var el=document.getElementById('typed-cmd'),cur=document.getElementById('cursor'),re=document.getElementById('typed-response');
         var i=0,rmotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
         if(rmotion){el.textContent=cmd;re.textContent=resp;re.style.opacity='1';cur.style.display='none';return}
