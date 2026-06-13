@@ -1,6 +1,6 @@
 # Dhiarlink — Production Deployment Guide
 
-**Target environment:** Proxmox LXC container + Cloudflare Tunnel (no public IP required)
+**Target environment:** Proxmox LXC container OR Linux Machine running Debian/Ubuntu + Cloudflare Tunnel (no public IP required)
 
 This guide walks you through deploying Dhiarlink from zero to fully operational on a self-hosted Proxmox LXC container, with Cloudflare Tunnel providing public access without a public IP address.
 
@@ -76,7 +76,7 @@ This guide walks you through deploying Dhiarlink from zero to fully operational 
 
 ---
 
-## Step 1: Proxmox LXC Container Setup
+## Step 1: Proxmox LXC Container Setup - You can jump to [step 2](#step-2-system-preparation) if you're not using proxmox.
 
 ### 1.1 Create the LXC Container
 
