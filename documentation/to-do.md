@@ -4,9 +4,10 @@
 
 ---
 
-1. Update the landing page terminal animation, because currently in android/mobile device, it will extend far to the right, making it has 2 scrolls horizontal and vertical.
-2. Fix deployement and source code overall
-3. Update branding and links like github in the landing page, because currently it still shows the shlink.
+1. ~~Update the landing page terminal animation, because currently in android/mobile device, it will extend far to the right, making it has 2 scrolls horizontal and vertical.~~ ✅ Done — Added `overflow-x: hidden` to html/body, mobile breakpoint wraps terminal text with `word-break: break-all`, smaller font size.
+2. ~~Fix deployment and source code overall~~ ✅ DONE
+3. ~~Update branding and links like github in the landing page, because currently it still shows the shlink.~~ ✅ Done — GitHub links point to `github.com/Alfar0nt/dhiarlink`
+4. ~~Change social links: X/Twitter → Instagram (`instagram.com/dhiarharianto`), Mastodon → Saweria donate (`saweria.co/dhiarharianto`)~~ ✅ Done — Updated SVG icons and links in landing page footer.
 
 ## 1. Core Branding Files to Change ✅ DONE
 
@@ -143,13 +144,13 @@ Created `module/Core/templates/landing.html` — a full landing page with:
 - **Hero section** with a terminal-style typing animation showing `curl -X POST https://dhiar.link/rest/v3/short-urls/shorten`
 - **Animated statistics counter** section showing: URLs shortened, redirects served, uptime percentage (pulled from server or placeholder)
 - **Features grid** with cards: Lightning Fast Redirects, Detailed Analytics, REST API, Self-Hosted & Private
-- **Social media icon links** section (GitHub, Twitter/X, Mastodon — with placeholder hrefs)
+- **Social media icon links** section (GitHub, Instagram, Saweria donate)
 - **Footer** with "Powered by Dhiarlink" and version info
 
 **Responsive requirements:**
 - Desktop: full grid layout, side-by-side sections
 - Tablet: 2-column grid, stacked hero
-- Mobile: single column, hamburger nav, full-width cards
+- Mobile: single column, hamburger nav, full-width cards, terminal text wraps with `word-break: break-all`, smaller font, `overflow-x: hidden` on html/body to prevent horizontal scroll
 
 **Accessibility (WCAG 2.1 AA):**
 - Color contrast ratio ≥ 4.5:1 for all text (silver `#a8b2c1` on `#0f1419` = ~8.2:1 ✓)
@@ -212,7 +213,7 @@ All HTML templates should follow these conventions:
 | # | Task | Status |
 |---|------|--------|
 | 1 | Define CSS custom properties (design tokens) as a shared snippet | ✅ Done — `module/Core/templates/_theme.css` |
-| 2 | Create the landing page template (`landing.html`) | ✅ Done — Full page with nav, hero typing animation, stats counters, features grid, social links, footer. Responsive + WCAG AA. |
+| 2 | Create the landing page template (`landing.html`) | ✅ Done — Full page with nav, hero typing animation, stats counters, features grid, social links, footer. Responsive + WCAG AA. Mobile overflow fixed: `overflow-x: hidden`, terminal `word-break: break-all`. |
 | 3 | Redesign the 404 error page | ✅ Done (Section 1, item #6) |
 | 4 | Redesign the invalid-short-code error page | ✅ Done (Section 1, item #7) |
 | 5 | Create a new `LandingAction` handler to serve the landing page at base URL | ✅ Done — `LandingAction.php` reads template, injects version, serves at `/`. Registered in routes + dependencies. |

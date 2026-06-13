@@ -24,6 +24,8 @@ Then you will have to follow these steps:
 
     The `dhiarlink_dev_env.php` file is git-ignored, so you can customize it as you want. For example, by adding your own GeoLite license key.
 
+    > **Note:** For production deployments, a `.env` file is used instead. See [.env.example](../.env.example) and [deployment.md](deployment.md) for the complete production environment variable reference.
+
 * Start-up the project by running `docker compose up`.
 
     The first time this command is run, it will create several containers that are used during development, so it may take some time.
@@ -37,6 +39,26 @@ Then you will have to follow these steps:
 Once you finish this, you will have the project exposed in ports `8800` through RoadRunner, `8008` through FrankenPHP and `8000` through nginx+php-fpm.
 
 > Note: The `indocker` shell script is a helper tool used to run commands inside the main RoadRunner docker container.
+
+## Production Stack
+
+For production deployments, a separate Docker Compose file is provided at `docker-compose.prod.yml`. This runs a minimal 5-service stack:
+
+| Service | Image | Purpose |
+|---------|-------|--------|
+| `dhiarlink` | `dhiarlink:latest` (built locally) | PHP 8.5 + RoadRunner backend |
+| `dhiarlink_db` | `mysql:8.0` | Database |
+| `dhiarlink_redis` | `redis:7.4-alpine` | Caching + pub/sub |
+| `dhiarlink_caddy` | `caddy:2-alpine` | Reverse proxy (port 3000) |
+| `dhiarlink_dashboard` | `dhiarlink-web-client:latest` (built from `../dhiarlink-web-client`) | React dashboard |
+
+```bash
+# Build and start the production stack
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
+```
+
+See [deployment.md](deployment.md) for the full production deployment guide including Cloudflare Tunnel setup.
 
 ## Project structure
 

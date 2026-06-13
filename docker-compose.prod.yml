@@ -122,7 +122,7 @@ services:
     # --------------------------------------------------------------------------
     # Caddy — Internal reverse proxy
     # Routes incoming requests (from cloudflared on host) by hostname:
-    #   dhiarr.qzz.io      → Dhiarlink backend (landing page)
+    #   www.dhiarr.qzz.io  → Dhiarlink backend (landing page)
     #   app.dhiarr.qzz.io  → dhiarlink-web-client dashboard
     #   link.dhiarr.qzz.io → Dhiarlink backend (short URL redirects)
     #

@@ -2,14 +2,14 @@
 
 ---
 
-## Q1: Will `dhiarr.qzz.io` show a landing page like shlink.io?
+## Q1: Will `www.dhiarr.qzz.io` show a landing page like shlink.io?
 
 **Yes.** The Dhiarlink backend currently does NOT have a built-in landing page — visiting the root URL (`/`) returns a "base URL not found" response. We're building one in Section 3 of the to-do list.
 
 Once done:
-- Visiting **`dhiarr.qzz.io`** in a browser will show the Dhiarlink landing page (hero section, features, stats, etc.)
-- The **REST API** still works at `dhiarr.qzz.io/rest/v3/...`
-- **Short URLs** also work at `dhiarr.qzz.io/abc123` (they redirect to the long URL)
+- Visiting **`www.dhiarr.qzz.io`** in a browser will show the Dhiarlink landing page (hero section, features, stats, etc.)
+- The **REST API** still works at `www.dhiarr.qzz.io/rest/v3/...`
+- **Short URLs** also work at `www.dhiarr.qzz.io/abc123` (they redirect to the long URL)
 
 So the landing page, the API, and the short URL redirects all live on the **same domain and same server**.
 
@@ -24,18 +24,18 @@ Dhiarlink (the project in this repo) is **only the backend**. It provides:
 - The redirect engine (short URL → long URL)
 - Error pages and health checks
 
-It does **NOT** include a web UI / dashboard. The dashboard is a **separate project** called [shlink-web-client](https://github.com/shlinkio/shlink-web-client) — a React app that connects to the Dhiarlink REST API.
+It does **NOT** include a web UI / dashboard. The dashboard is a **separate project** called [dhiarlink-web-client](https://github.com/dhiar/dhiarlink-web-client) — a React app that connects to the Dhiarlink REST API.
 
 So your deployment would look like:
 
 ```
-dhiarr.qzz.io          → Dhiarlink backend (landing page + API + redirect engine)
-app.dhiarr.qzz.io      → shlink-web-client (React dashboard, deployed separately)
+www.dhiarr.qzz.io      → Dhiarlink backend (landing page + API + redirect engine)
+app.dhiarr.qzz.io      → dhiarlink-web-client (React dashboard, deployed separately)
 ```
 
 The web client just needs to know where the API lives. You configure it with:
 ```
-API URL: https://dhiarr.qzz.io/rest
+API URL: https://www.dhiarr.qzz.io/rest
 API Key: <your-generated-api-key>
 ```
 
@@ -49,13 +49,13 @@ Here's how the domain split would work:
 
 | Domain | Purpose | What runs here |
 |--------|---------|----------------|
-| `dhiarr.qzz.io` | Landing page + API | Dhiarlink backend |
-| `app.dhiarr.qzz.io` | Dashboard | shlink-web-client (React) |
+| `www.dhiarr.qzz.io` | Landing page + API | Dhiarlink backend |
+| `app.dhiarr.qzz.io` | Dashboard | dhiarlink-web-client (React) |
 | `link.dhiarr.qzz.io` | Short URLs | **Also Dhiarlink backend** (same server) |
 
 ### How to set this up:
 
-You point **both** `dhiarr.qzz.io` and `link.dhiarr.qzz.io` to the same Dhiarlink server (via DNS A/CNAME records). Then:
+You point **both** `www.dhiarr.qzz.io` and `link.dhiarr.qzz.io` to the same Dhiarlink server (via CNAME records for Cloudflare Tunnel). Then:
 
 1. Set `DEFAULT_DOMAIN=link.dhiarr.qzz.io` in your environment config
 2. Dhiarlink generates short URLs like: `https://link.dhiarr.qzz.io/spotify`
@@ -202,8 +202,8 @@ This means the visitor gets redirected instantly without waiting for the databas
 ┌─────────────────────────────────────────────────────────────┐
 │                    DNS Records                               │
 │                                                             │
-│  dhiarr.qzz.io      → Your server (Dhiarlink backend)       │
-│  app.dhiarr.qzz.io  → Your server (shlink-web-client)       │
+│  www.dhiarr.qzz.io  → Your server (Dhiarlink backend)       │
+│  app.dhiarr.qzz.io  → Your server (dhiarlink-web-client)    │
 │  link.dhiarr.qzz.io → Your server (Dhiarlink backend)       │
 └─────────────────────────────────────────────────────────────┘
 
@@ -212,7 +212,7 @@ This means the visitor gets redirected instantly without waiting for the databas
 │                                                             │
 │  ┌─ Reverse Proxy (nginx/Caddy/Traefik) ──────────────────┐ │
 │  │                                                        │ │
-│  │  dhiarr.qzz.io                                         │ │
+│  │  www.dhiarr.qzz.io                                   │ │
 │  │    /          → Landing page (Section 3)               │ │
 │  │    /rest/*    → REST API                               │ │
 │  │    /{code}    → Redirect engine                        │ │
@@ -221,7 +221,7 @@ This means the visitor gets redirected instantly without waiting for the databas
 │  │    /{code}    → Redirect engine (same backend)         │ │
 │  │                                                        │ │
 │  │  app.dhiarr.qzz.io                                     │ │
-│  │    /*         → shlink-web-client (React SPA)          │ │
+│  │    /*         → dhiarlink-web-client (React SPA)        │ │
 │  │                                                        │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                             │
@@ -244,7 +244,7 @@ This means the visitor gets redirected instantly without waiting for the databas
 DEFAULT_DOMAIN=link.dhiarr.qzz.io    # Short URLs use this domain
 IS_HTTPS_ENABLED=true                # Generate https:// links
 DB_DRIVER=mysql                      # Or postgres
-DB_HOST=dhiarlink_db_mysql
+DB_HOST=dhiarlink_db
 DB_NAME=dhiarlink
 REDIS_SERVERS=tcp://dhiarlink_redis:6379
 MERCURE_ENABLED=true
