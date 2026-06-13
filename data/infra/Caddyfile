@@ -20,6 +20,9 @@
 
 # --- www.dhiarr.qzz.io — Landing page + REST API -----------------------------
 :80 {
+    # Enable gzip + zstd compression for all responses
+    encode gzip zstd
+
     @dhiarr host www.dhiarr.qzz.io
     handle @dhiarr {
         reverse_proxy dhiarlink:8080 {
