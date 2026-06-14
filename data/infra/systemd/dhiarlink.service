@@ -1,0 +1,46 @@
+# Dhiarlink — RoadRunner systemd service
+#
+# Installation:
+#   sudo cp data/infra/systemd/dhiarlink.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now dhiarlink
+#
+# Management:
+#   sudo systemctl status dhiarlink
+#   sudo systemctl restart dhiarlink
+#   sudo journalctl -u dhiarlink -f
+
+[Unit]
+Description=Dhiarlink URL Shortener (RoadRunner)
+Documentation=https://github.com/dhiar/dhiarlink
+After=network.target mysql.service redis.service
+Wants=mysql.service redis.service
+
+[Service]
+Type=simple
+User=dhiarlink
+Group=dhiarlink
+WorkingDirectory=/opt/dhiarlink
+EnvironmentFile=/opt/dhiarlink/.env
+ExecStart=/opt/dhiarlink/bin/rr serve -c config/roadrunner/.rr.yml
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/dhiarlink/data
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=512M
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dhiarlink
+
+[Install]
+WantedBy=multi-user.target

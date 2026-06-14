@@ -28,6 +28,8 @@ This guide walks you through deploying Dhiarlink from zero to fully operational 
 - [Troubleshooting](#troubleshooting)
 - [Quick Reference](#quick-reference)
 - [Fixing an Existing Deployment](#fixing-an-existing-deployment)
+- [Migrating from Docker to Bare Metal](#migrating-from-docker-to-bare-metal)
+- [Bare Metal Deployment (No Docker)](#bare-metal-deployment-no-docker)
 
 ---
 
@@ -1062,6 +1064,730 @@ Then test all three URLs in your browser:
 - https://www.dhiarr.qzz.io (landing page)
 - https://app.dhiarr.qzz.io (dashboard — should be pre-configured)
 - https://link.dhiarr.qzz.io/<any-short-code> (redirect)
+
+---
+
+## Migrating from Docker to Bare Metal
+
+If you currently run Dhiarlink via Docker and want to switch to bare metal for raw performance, follow these steps to cleanly migrate without data loss.
+
+### Step 1: Backup Your Data
+
+```bash
+cd /opt/dhiarlink
+
+# Backup the database
+docker exec dhiarlink_db mysqldump -u root -p${DB_ROOT_PASSWORD} dhiarlink > ~/dhiarlink-full-backup.sql
+
+# Backup your .env file (contains secrets!)
+cp .env ~/dhiarlink.env.backup
+
+# Backup GeoLite2 database (if downloaded)
+docker exec dhiarlink tar czf - /etc/dhiarlink/data/GeoLite2-City.mmdb > ~/geolite-backup.tar.gz 2>/dev/null || true
+```
+
+### Step 2: Stop the Docker Stack
+
+```bash
+cd /opt/dhiarlink
+
+# Stop all containers
+docker compose -f docker-compose.prod.yml down
+
+# Remove containers, images, and volumes (irreversible!)
+docker compose -f docker-compose.prod.yml down --rmi all -v
+
+# Verify nothing is left
+docker ps -a --filter "name=dhiarlink"
+docker volume ls --filter "name=dhiarlink"
+```
+
+### Step 3: (Optional) Uninstall Docker
+
+If you no longer need Docker on this machine:
+
+```bash
+# Stop Docker daemon
+sudo systemctl stop docker
+sudo systemctl disable docker
+
+# Remove Docker packages
+sudo apt remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Remove Docker data
+sudo rm -rf /var/lib/docker
+sudo rm -rf /var/lib/containerd
+sudo rm -rf /etc/docker
+
+# Remove Docker group
+sudo groupdel docker 2>/dev/null || true
+
+# Clean up unused packages
+sudo apt autoremove -y
+```
+
+### Step 4: Restore Your Database
+
+After installing MySQL natively (see bare metal guide below), import your backup:
+
+```bash
+# Create the database and user first (see Step 4 of bare metal guide)
+mysql -u root -p < ~/dhiarlink-full-backup.sql
+```
+
+### Step 5: Continue with Bare Metal Setup
+
+Follow the [Bare Metal Deployment](#bare-metal-deployment-no-docker) guide below, skipping the database creation step since you already restored your data.
+
+---
+
+## Bare Metal Deployment (No Docker)
+
+This guide deploys Dhiarlink natively on a Debian/Ubuntu server without Docker, for maximum raw performance. All services run directly on the host.
+
+**Target environment:** Debian 12 (Bookworm) or Ubuntu 24.04 LTS + Cloudflare Tunnel
+
+### Architecture
+
+```
+                          Cloudflare Edge (TLS termination)
+                          ├── www.dhiarr.qzz.io   (landing page)
+                          ├── app.dhiarr.qzz.io   (dashboard UI)
+                          └── link.dhiarr.qzz.io  (short URL redirects)
+                                    │
+                          Cloudflare Tunnel (encrypted)
+                                    │
+                     ┌──────────────▼──────────────┐
+                     │  cloudflared (SYSTEM SERVICE) │
+                     └──────────────┬──────────────┘
+                                    │  (plain HTTP, localhost:3000)
+                     ┌──────────────▼──────────────┐
+                     │  Caddy 2 (port 3000)         │
+                     │  Reverse proxy + compression │
+                     └────┬────────────┬───────────┘
+                          │            │
+                     ┌────▼──────┐ ┌───▼─────────────┐
+                     │ RoadRunner │ │ nginx (port 8081)│
+                     │ (port 8080)│ │ Dashboard SPA    │
+                     └──┬──────┬─┘ └──────────────────┘
+                        │      │
+                     ┌──▼──┐ ┌─▼─────┐
+                     │MySQL│ │Redis  │
+                     └─────┘ └───────┘
+```
+
+All services run natively on the same host — no containerization overhead.
+
+### System Requirements
+
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| **CPU** | 2 cores | 4 cores |
+| **RAM** | 2 GB | 4 GB |
+| **Disk** | 20 GB SSD | 40 GB SSD |
+| **OS** | Debian 12 or Ubuntu 24.04 | Debian 12 |
+
+### Dependencies Overview
+
+| Software | Version | Purpose |
+|----------|---------|---------|
+| PHP | 8.4+ or 8.5 | Application runtime |
+| RoadRunner | Latest | High-performance PHP app server |
+| MySQL | 8.0 | Database |
+| Redis | 7.4 | Caching + pub/sub |
+| Caddy | 2.x | Reverse proxy + compression |
+| Composer | 2.x | PHP dependency manager |
+| Node.js | 20+ LTS | Dashboard build (one-time) |
+| nginx | 1.25+ | Dashboard static file serving |
+| cloudflared | Latest | Cloudflare Tunnel (already installed) |
+
+---
+
+### Step 1: System Preparation
+
+```bash
+# Update the system
+sudo apt update && sudo apt upgrade -y
+
+# Install essential packages
+sudo apt install -y curl wget gnupg ca-certificates lsb-release git unzip nano htop
+
+# Set timezone
+sudo timedatectl set-timezone Asia/Jakarta
+
+# Create a dedicated user
+sudo adduser --disabled-password dhiarlink
+sudo mkdir -p /opt/dhiarlink
+sudo chown dhiarlink:dhiarlink /opt/dhiarlink
+```
+
+---
+
+### Step 2: Install PHP 8.5
+
+PHP 8.5 is available from the [deb.sury.org](https://deb.sury.org/) repository (Ondrej Sury's PPA).
+
+```bash
+# Add the PHP repository
+sudo apt install -y lsb-release ca-certificates apt-transport-https software-properties-common
+sudo curl -sSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb
+sudo dpkg -i /tmp/debsuryorg-archive-keyring.deb
+sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
+sudo apt update
+
+# Install PHP and all required extensions
+sudo apt install -y \
+    php8.5-cli \
+    php8.5-curl \
+    php8.5-mbstring \
+    php8.5-intl \
+    php8.5-bcmath \
+    php8.5-sockets \
+    php8.5-zip \
+    php8.5-calendar \
+    php8.5-mysql \
+    php8.5-pgsql \
+    php8.5-sqlite3 \
+    php8.5-apcu \
+    php8.5-opcache \
+    php8.5-xml
+```
+
+> **Note:** If PHP 8.5 is not yet available, PHP 8.4 works as well. Replace `php8.5` with `php8.4` in all commands.
+
+#### Configure PHP for Production
+
+Create a production php.ini override:
+
+```bash
+sudo nano /etc/php/8.5/cli/conf.d/99-dhiarlink.ini
+```
+
+```ini
+; --- Error Handling ---
+display_errors=Off
+display_startup_errors=Off
+log_errors=On
+error_reporting=E_ALL & ~E_DEPRECATED & ~E_STRICT
+
+; --- Assertions (disabled in production) ---
+zend.assertions=-1
+assert.exception=0
+
+; --- OPcache (critical for performance) ---
+opcache.enable=1
+opcache.enable_cli=1
+opcache.memory_consumption=256
+opcache.max_accelerated_files=20000
+opcache.validate_timestamps=0
+opcache.interned_strings_buffer=16
+opcache.save_comments=1
+opcache.preload=/opt/dhiarlink/config/opcache-preload.php
+opcache.preload_user=dhiarlink
+
+; --- APCu (in-process metadata cache) ---
+apc.enabled=1
+apc.enable_cli=1
+apc.shm_size=64M
+apc.entries_hint=10000
+apc.ttl=7200
+
+; --- Memory & Execution ---
+memory_limit=256M
+max_execution_time=30
+realpath_cache_size=4096K
+realpath_cache_ttl=600
+```
+
+Verify:
+
+```bash
+php -v
+php -m | grep -E 'opcache|apcu|pdo_mysql|intl|mbstring|curl|sockets|bcmath|zip|calendar'
+```
+
+---
+
+### Step 3: Install MySQL 8.0
+
+```bash
+# Install MySQL server
+sudo apt install -y mysql-server
+
+# Secure the installation
+sudo mysql_secure_installation
+```
+
+#### Create Database and User
+
+```bash
+sudo mysql -u root -p
+```
+
+```sql
+CREATE DATABASE dhiarlink CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'dhiarlink'@'localhost' IDENTIFIED BY 'YOUR_SECURE_PASSWORD';
+GRANT ALL PRIVILEGES ON dhiarlink.* TO 'dhiarlink'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+#### Tune MySQL for Performance
+
+```bash
+sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
+```
+
+Add or modify these settings under `[mysqld]`:
+
+```ini
+[mysqld]
+# InnoDB tuning
+innodb_buffer_pool_size = 256M
+innodb_log_file_size = 64M
+innodb_flush_log_at_trx_commit = 2
+innodb_flush_method = O_DIRECT
+
+# Connection limits
+max_connections = 100
+
+# Query cache (disabled — InnoDB buffer pool is more efficient)
+query_cache_type = 0
+
+# Character set
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# Logging
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 2
+```
+
+```bash
+sudo systemctl restart mysql
+sudo systemctl enable mysql
+```
+
+---
+
+### Step 4: Install Redis 7.4
+
+```bash
+# Install Redis
+sudo apt install -y redis-server
+
+# Configure Redis
+sudo nano /etc/redis/redis.conf
+```
+
+Key settings to modify:
+
+```ini
+# Bind to localhost only
+bind 127.0.0.1
+
+# Memory management
+maxmemory 128mb
+maxmemory-policy allkeys-lru
+
+# Persistence (RDB snapshots)
+save 900 1
+save 300 10
+save 60 10000
+
+# Disable protected mode since we're bound to localhost
+protected-mode yes
+```
+
+```bash
+sudo systemctl restart redis-server
+sudo systemctl enable redis-server
+
+# Verify
+redis-cli ping
+# Should respond: PONG
+```
+
+---
+
+### Step 5: Install Composer
+
+```bash
+# Download and install Composer
+curl -sS https://getcomposer.org/installer | php
+sudo mv composer.phar /usr/local/bin/composer
+
+# Verify
+composer --version
+```
+
+---
+
+### Step 6: Clone and Set Up Dhiarlink
+
+```bash
+# Clone the repository
+sudo git clone <your-backend-repo-url> /opt/dhiarlink
+sudo chown -R dhiarlink:dhiarlink /opt/dhiarlink
+
+# Switch to the dhiarlink user
+sudo su - dhiarlink
+cd /opt/dhiarlink
+
+# Install PHP dependencies (production only, optimized autoloader)
+composer install --no-dev --prefer-dist --optimize-autoloader --no-progress --no-interaction
+
+# Generate the optimized class map (required for OPcache preloading)
+composer dump-autoload --optimize --classmap-authoritative
+```
+
+#### Create the .env File
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Key differences from Docker — update these values:
+
+```env
+# Database: localhost instead of Docker hostname
+DB_HOST=localhost
+DB_USER=dhiarlink
+DB_PASSWORD=YOUR_SECURE_PASSWORD
+
+# Redis: localhost instead of Docker hostname
+REDIS_SERVERS=tcp://127.0.0.1:6379
+
+# Everything else stays the same
+DEFAULT_DOMAIN=link.dhiarr.qzz.io
+IS_HTTPS_ENABLED=true
+TRUSTED_PROXIES=1
+CORS_ALLOW_ORIGIN=https://app.dhiarr.qzz.io
+APP_ENV=prod
+DHIARLINK_RUNTIME=rr
+
+# Dashboard pre-config
+DHIARLINK_SERVER_URL=https://www.dhiarr.qzz.io
+DHIARLINK_SERVER_API_KEY=YOUR_API_KEY
+DHIARLINK_SERVER_NAME=Dhiarlink
+DHIARLINK_SERVER_FORWARD_CREDENTIALS=false
+```
+
+#### Initialize the Database
+
+```bash
+# Create data directories
+mkdir -p data/cache data/locks data/log data/proxies data/temp-geolite
+
+# Run the installer (creates schema, runs migrations)
+php vendor/bin/shlink-installer init --no-interaction --clear-db-cache
+
+# Generate your first API key
+bin/cli api-key:generate
+```
+
+#### Download RoadRunner Binary
+
+```bash
+# Download RoadRunner using the Composer helper
+php vendor/bin/rr get --no-interaction --no-config --location bin/
+chmod +x bin/rr
+
+# Verify
+bin/rr version
+```
+
+#### Test the Server
+
+```bash
+# Start RoadRunner manually to test (Ctrl+C to stop)
+bin/rr serve -c config/roadrunner/.rr.yml
+
+# In another terminal, test the health endpoint
+curl -s http://127.0.0.1:8080/rest/health
+# Should return: {"status":"pass",...}
+```
+
+---
+
+### Step 7: Install RoadRunner as a Systemd Service
+
+```bash
+# Exit back to your sudo user
+exit
+
+# Copy the service file
+sudo cp /opt/dhiarlink/data/infra/systemd/dhiarlink.service /etc/systemd/system/
+
+# Reload systemd and enable the service
+sudo systemctl daemon-reload
+sudo systemctl enable --now dhiarlink
+
+# Verify it's running
+sudo systemctl status dhiarlink
+sudo journalctl -u dhiarlink -f
+```
+
+#### Service Management Commands
+
+```bash
+sudo systemctl start dhiarlink      # Start
+sudo systemctl stop dhiarlink       # Stop
+sudo systemctl restart dhiarlink    # Restart
+sudo systemctl status dhiarlink     # Check status
+sudo journalctl -u dhiarlink -f     # Follow logs
+sudo journalctl -u dhiarlink --since "1 hour ago"  # Recent logs
+```
+
+---
+
+### Step 8: Install and Configure Caddy
+
+```bash
+# Install Caddy from the official repository
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install -y caddy
+
+# Copy the bare metal Caddyfile
+sudo cp /opt/dhiarlink/data/infra/Caddyfile.bare-metal /etc/caddy/Caddyfile
+
+# Restart Caddy
+sudo systemctl restart caddy
+sudo systemctl enable caddy
+
+# Verify Caddy is listening on port 3000
+sudo ss -tlnp | grep 3000
+
+# Test through Caddy
+curl -s -H "Host: www.dhiarr.qzz.io" http://localhost:3000/rest/health
+```
+
+---
+
+### Step 9: Build and Serve the Dashboard
+
+The dashboard (dhiarlink-web-client) is a React app that needs to be built once and served as static files.
+
+#### Clone and Build
+
+```bash
+# Clone the dashboard repo
+sudo git clone <your-web-client-repo-url> /opt/dhiarlink-web-client
+sudo chown -R dhiarlink:dhiarlink /opt/dhiarlink-web-client
+
+# Install Node.js (if not already installed)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Build the dashboard
+sudo su - dhiarlink
+cd /opt/dhiarlink-web-client
+npm ci
+npm run build
+exit
+```
+
+#### Serve with nginx
+
+```bash
+# Install nginx
+sudo apt install -y nginx
+
+# Create nginx config for the dashboard
+sudo nano /etc/nginx/sites-available/dhiarlink-dashboard
+```
+
+```nginx
+server {
+    listen 127.0.0.1:8081;
+    server_name app.dhiarr.qzz.io;
+
+    root /opt/dhiarlink-web-client/dist;
+    index index.html;
+
+    # SPA fallback — all routes serve index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+```bash
+# Enable the site
+sudo ln -s /etc/nginx/sites-available/dhiarlink-dashboard /etc/nginx/sites-enabled/
+sudo nginx -t  # Test configuration
+sudo systemctl restart nginx
+sudo systemctl enable nginx
+
+# Verify dashboard is served
+curl -s http://127.0.0.1:8081 | head -5
+```
+
+---
+
+### Step 10: Configure Cloudflare Tunnel
+
+cloudflared should already be installed as a system service. Update its config to point to Caddy on port 3000:
+
+```bash
+nano ~/.cloudflared/config.yml
+```
+
+```yaml
+tunnel: <your-tunnel-id>
+credentials-file: /home/<user>/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+    - hostname: www.dhiarr.qzz.io
+      service: http://localhost:3000
+    - hostname: app.dhiarr.qzz.io
+      service: http://localhost:3000
+    - hostname: link.dhiarr.qzz.io
+      service: http://localhost:3000
+    - service: http_status:404
+```
+
+```bash
+sudo systemctl restart cloudflared
+sudo systemctl status cloudflared
+```
+
+---
+
+### Step 11: Verify Everything Works
+
+```bash
+# 1. Check all services are running
+sudo systemctl status dhiarlink     # RoadRunner
+sudo systemctl status mysql         # Database
+sudo systemctl status redis-server  # Cache
+sudo systemctl status caddy         # Reverse proxy
+sudo systemctl status nginx         # Dashboard
+sudo systemctl status cloudflared   # Tunnel
+
+# 2. Test the health endpoint through Caddy
+curl -s -H "Host: www.dhiarr.qzz.io" http://localhost:3000/rest/health
+
+# 3. Create a test short URL
+sudo su - dhiarlink
+cd /opt/dhiarlink
+bin/cli short-url:create https://github.com --tags test
+
+# 4. Test the redirect
+curl -I -H "Host: link.dhiarr.qzz.io" http://localhost:3000/<short-code>
+# Should return: HTTP/1.1 302 Found, Location: https://github.com
+```
+
+Then test all three URLs in your browser:
+- **https://www.dhiarr.qzz.io** — Landing page
+- **https://app.dhiarr.qzz.io** — Dashboard (pre-configured)
+- **https://link.dhiarr.qzz.io/<short-code>** — Redirect
+
+---
+
+### Bare Metal Maintenance
+
+#### Updating Dhiarlink
+
+```bash
+sudo su - dhiarlink
+cd /opt/dhiarlink
+
+# Pull latest changes
+git pull
+
+# Update dependencies
+composer install --no-dev --prefer-dist --optimize-autoloader --no-progress
+
+# Regenerate optimized class map
+composer dump-autoload --optimize --classmap-authoritative
+
+# Run any pending database migrations
+bin/cli db:migrate
+
+exit
+
+# Restart RoadRunner to pick up changes
+sudo systemctl restart dhiarlink
+```
+
+#### Updating the Dashboard
+
+```bash
+sudo su - dhiarlink
+cd /opt/dhiarlink-web-client
+git pull
+npm ci
+npm run build
+exit
+
+# No nginx restart needed — static files are updated
+```
+
+#### Viewing Logs
+
+```bash
+# RoadRunner (Dhiarlink)
+sudo journalctl -u dhiarlink -f
+
+# Caddy
+sudo journalctl -u caddy -f
+
+# MySQL
+sudo journalctl -u mysql -f
+
+# Redis
+sudo journalctl -u redis-server -f
+
+# cloudflared
+sudo journalctl -u cloudflared -f
+
+# nginx
+sudo journalctl -u nginx -f
+sudo tail -f /var/log/nginx/error.log
+```
+
+#### Backup and Restore
+
+```bash
+# Backup database
+mysqldump -u root -p dhiarlink > ~/dhiarlink-backup-$(date +%Y%m%d).sql
+
+# Backup .env and GeoLite DB
+cp /opt/dhiarlink/.env ~/dhiarlink-env-backup
+cp /opt/dhiarlink/data/GeoLite2-City.mmdb ~/geolite-backup 2>/dev/null || true
+
+# Automated daily backup via cron
+crontab -e
+# Add:
+# 0 3 * * * mysqldump -u root -pYOUR_PASSWORD dhiarlink > ~/dhiarlink-backups/db_$(date +\%Y\%m\%d).sql && find ~/dhiarlink-backups -name "db_*.sql" -mtime +30 -delete
+```
+
+#### Performance Tuning Checklist
+
+| Component | Setting | Value | File |
+|-----------|---------|-------|------|
+| **PHP OPcache** | `opcache.memory_consumption` | `256` | `/etc/php/8.5/cli/conf.d/99-dhiarlink.ini` |
+| **PHP OPcache** | `opcache.validate_timestamps` | `0` | Same file |
+| **PHP OPcache** | `opcache.preload` | `/opt/dhiarlink/config/opcache-preload.php` | Same file |
+| **PHP APCu** | `apc.shm_size` | `64M` | Same file |
+| **MySQL** | `innodb_buffer_pool_size` | `256M` | `/etc/mysql/mysql.conf.d/mysqld.cnf` |
+| **MySQL** | `max_connections` | `100` | Same file |
+| **Redis** | `maxmemory` | `128mb` | `/etc/redis/redis.conf` |
+| **Redis** | `maxmemory-policy` | `allkeys-lru` | Same file |
+| **RoadRunner** | `WEB_WORKER_NUM` | `0` (auto) | `/opt/dhiarlink/.env` |
+| **RoadRunner** | `max_jobs` | `500` | `config/roadrunner/.rr.yml` |
 
 ---
 

@@ -67,6 +67,8 @@ Dhiarlink is a fork of Shlink with cosmetic rebranding and infrastructure improv
 
 ### Production Architecture
 
+**Docker deployment:**
+
 ```
                           Cloudflare Edge (TLS termination)
                           ├── www.dhiarr.qzz.io   (landing page)
@@ -98,12 +100,34 @@ Dhiarlink is a fork of Shlink with cosmetic rebranding and infrastructure improv
                      └───────────────────────────────┘
 ```
 
+**Bare metal deployment** (all services native, no Docker):
+
+```
+                          Cloudflare Edge → cloudflared (system service)
+                                    │  localhost:3000
+                     ┌──────────────▼──────────────┐
+                     │  Caddy 2 (native)            │  ← Port 3000, gzip+zstd
+                     └────┬────────────┬───────────┘
+                          │            │
+                     ┌────▼──────┐ ┌───▼─────────────┐
+                     │ RoadRunner │ │ nginx (port 8081)│
+                     │ (port 8080)│ │ Dashboard SPA    │
+                     └──┬──────┬─┘ └──────────────────┘
+                        │      │
+                     ┌──▼──┐ ┌─▼─────┐
+                     │MySQL│ │Redis  │
+                     └─────┘ └───────┘
+```
+
+See [deployment.md](deployment.md) for both Docker and bare metal deployment guides.
+
 **Key design decisions:**
 - **cloudflared runs as a system service** on the host (not inside Docker)
-- Caddy is the only service exposed to the host (port `3000`)
+- **Docker:** Caddy is the only service exposed to the host (port `3000`)
+- **Bare metal:** All services run natively — Caddy on port 3000, RoadRunner on 8080, nginx on 8081
 - TLS/HTTPS is terminated at Cloudflare's edge — internal traffic is plain HTTP
-- Caddy routes requests to the correct backend based on hostname
-- Database and Redis are only accessible within the Docker network
+- Caddy routes requests to the correct backend based on hostname and handles compression (gzip + zstd)
+- OPcache preloading precompiles all PHP classes at startup for faster first requests
 - The dashboard is built from the sibling `dhiarlink-web-client` fork
 
 ### Request Flow
@@ -300,12 +324,18 @@ dhiarlink
 ├── config/
 │   ├── autoload/        Merged application config (routes, middleware, cache, etc.)
 │   ├── params/          Local dev config (git-ignored)
-│   ├── roadrunner/      RoadRunner server configs (.rr.yml)
+│   ├── roadrunner/      RoadRunner server configs (.rr.yml, .rr.dev.yml, .rr.test.yml)
 │   ├── test/            Test bootstrapping and configuration
 │   ├── config.php       Config aggregator root
-│   └── container.php    DI container bootstrap
+│   ├── container.php    DI container bootstrap
+│   └── opcache-preload.php  OPcache class preloading script (production)
 ├── data/                Runtime-writable: cache, logs, locks, proxies, migrations
-│   ├── infra/           Infrastructure configs (Caddyfile, Dockerfiles, nginx)
+│   ├── infra/           Infrastructure configs (Caddyfile, Dockerfiles, nginx, systemd)
+│   │   ├── Caddyfile          Caddy reverse proxy (Docker)
+│   │   ├── Caddyfile.bare-metal  Caddy reverse proxy (bare metal)
+│   │   ├── systemd/           Systemd service files for bare metal
+│   │   ├── *.Dockerfile       Dev Dockerfiles (RoadRunner, FrankenPHP, PHP-FPM)
+│   │   └── php.ini            Dev PHP configuration
 │   └── migrations_template.txt
 ├── docker/              Production Docker entrypoint and PHP config
 ├── documentation/       Project documentation, guides, and references

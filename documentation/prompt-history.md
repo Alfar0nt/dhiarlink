@@ -10,6 +10,8 @@
 - [Session 2: Documentation & Deployment Infrastructure](#session-2-documentation--deployment-infrastructure)
 - [Session 3: Deployment Debugging & Hostname Migration](#session-3-deployment-debugging--hostname-migration)
 - [Session 4: Documentation Overhaul](#session-4-documentation-overhaul)
+- [Session 5: Landing Page Mobile Fix & Social Links](#session-5-landing-page-mobile-fix--social-links)
+- [Session 6: Performance Optimization & Bare Metal Deployment](#session-6-performance-optimization--bare-metal-deployment)
 
 ---
 
@@ -298,3 +300,80 @@ Client → Cloudflare Edge (TLS) → cloudflared (system service) → localhost:
 - `module/Core/templates/landing.html` — CSS overflow fixes, mobile terminal styling, social link/icon SVG replacements
 - `documentation/to-do.md` — Marked items 1, 3, 4 as done with details
 - `documentation/prompt-history.md` — This session entry
+
+---
+
+## Session 6: Performance Optimization & Bare Metal Deployment
+
+### Prompt 15: Optimize Backend Performance & Add Bare Metal Deployment
+
+**User asked:**
+1. Understand the full codebase again and optimize backend/API performance (slow load times from dashboard)
+2. Create a complete bare metal deployment guide (no Docker — raw LXC performance)
+3. Provide Docker uninstall/migration instructions
+4. Update prompt-history.md
+
+**Critical discoveries during codebase review:**
+
+| Issue | Impact | Fix |
+|-------|--------|-----|
+| **Missing `config/roadrunner/.rr.yml`** | Production Docker image had no RoadRunner config — RR ran with defaults or failed | Created production config with worker pool tuning |
+| **Missing `data/infra/Caddyfile`** | Referenced in docs but absent (`.dockerignore` excluded `data/infra/`) | Recreated with hostname routing + gzip/zstd compression |
+| **Missing `docker-compose.prod.yml`** | Production stack orchestration file absent | Recreated 5-service stack |
+| **Missing `.env.example`** | Environment variable reference file absent | Recreated with all documented variables |
+| **Double compression** | Both RoadRunner gzip and Caddy encode were active | Removed gzip from RR production config, Caddy handles all compression |
+| **No OPcache preloading** | First-request compilation overhead | Created `config/opcache-preload.php` using Composer class map |
+
+**Performance optimizations applied:**
+
+| Optimization | Details |
+|-------------|---------|
+| **RoadRunner production config** | `num_workers: 0` (auto CPU), `max_jobs: 500`, supervisor with memory limits (128MB HTTP / 256MB jobs), idle TTL, exec TTL, `prefetch: 100` for job pipeline |
+| **OPcache preloading** | `config/opcache-preload.php` reads Composer's `autoload_classmap.php` and preloads all classes via `opcache_compile_file()`. Logs preload count to stderr |
+| **PHP ini preload directive** | `opcache.preload=/etc/dhiarlink/config/opcache-preload.php` added to Docker `php.ini` |
+| **Caddy compression** | `encode gzip zstd` in Caddyfile — faster than RoadRunner's gzip, supports zstd for modern browsers |
+| **Removed double compression** | RR middleware: `['static']` only (no `gzip`) since Caddy compresses all responses |
+
+**Files created:**
+
+| File | Purpose |
+|------|---------|
+| `config/roadrunner/.rr.yml` | Production RoadRunner config with env var overrides (`WEB_WORKER_NUM`, `TASK_WORKER_NUM`, `LOGS_FORMAT`) |
+| `data/infra/Caddyfile` | Docker Caddy reverse proxy: hostname routing, gzip+zstd, proper header forwarding |
+| `docker-compose.prod.yml` | Production Docker Compose: 5 services (Dhiarlink, MySQL, Redis, Caddy, Dashboard) |
+| `.env.example` | Environment variable reference with Docker and bare metal defaults |
+| `config/opcache-preload.php` | OPcache class preloading script using Composer's optimized class map |
+| `data/infra/systemd/dhiarlink.service` | Systemd unit file for RoadRunner with security hardening |
+| `data/infra/Caddyfile.bare-metal` | Bare metal Caddy config (listens on :3000, proxies to localhost:8080/8081) |
+
+**Files modified:**
+
+| File | Change |
+|------|--------|
+| `docker/config/php.ini` | Added `opcache.preload` and `opcache.preload_user` directives |
+| `documentation/deployment.md` | Added "Migrating from Docker to Bare Metal" section + complete "Bare Metal Deployment (No Docker)" guide (~720 lines) |
+| `documentation/to-do.md` | Updated tracking items |
+| `documentation/prompt-history.md` | This session entry |
+
+**Bare metal deployment guide covers:**
+1. System preparation (Debian 12 / Ubuntu 24.04)
+2. PHP 8.5 installation from deb.sury.org with 12 extensions
+3. Production PHP tuning (OPcache 256MB, APCu 64MB, preload, assertions disabled)
+4. MySQL 8.0 native install with performance tuning (InnoDB buffer pool, connection limits)
+5. Redis 7.4 native install with memory management (128MB, LRU eviction)
+6. Composer 2.x installation
+7. Project setup: `composer install --no-dev --optimize-autoloader`, class map generation
+8. RoadRunner binary download and systemd service installation
+9. Caddy 2 installation from official repo + bare metal Caddyfile
+10. Dashboard: Node.js build + nginx serving on port 8081
+11. Cloudflare Tunnel configuration (same as Docker — `localhost:3000`)
+12. Verification steps and maintenance commands
+13. Performance tuning checklist table
+
+**Docker migration guide covers:**
+1. Database backup via `mysqldump`
+2. `.env` and GeoLite DB backup
+3. Stop and remove Docker stack (`down --rmi all -v`)
+4. Optional Docker uninstall (`apt remove docker-ce...`)
+5. Database restore into native MySQL
+6. Continue with bare metal setup

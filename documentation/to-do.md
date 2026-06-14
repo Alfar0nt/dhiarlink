@@ -8,6 +8,7 @@
 2. ~~Fix deployment and source code overall~~ ✅ DONE
 3. ~~Update branding and links like github in the landing page, because currently it still shows the shlink.~~ ✅ Done — GitHub links point to `github.com/Alfar0nt/dhiarlink`
 4. ~~Change social links: X/Twitter → Instagram (`instagram.com/dhiarharianto`), Mastodon → Saweria donate (`saweria.co/dhiarharianto`)~~ ✅ Done — Updated SVG icons and links in landing page footer.
+5. ~~Optimize backend/API performance and add bare metal deployment~~ ✅ Done — Created missing production configs (RoadRunner `.rr.yml`, Caddyfile, docker-compose.prod.yml, .env.example), added OPcache preloading, created bare metal deployment guide with systemd services, Docker uninstall instructions.
 
 ## 1. Core Branding Files to Change ✅ DONE
 
@@ -95,6 +96,10 @@ These are all the files that contain user-facing or cosmetic "Shlink" branding t
 | 5 | **Add Doctrine query caching** | ✅ Done | APCu installed in production Docker image for fast in-process metadata caching. Entity-manager config documented. Redis-backed result cache available via shlink-common when `REDIS_SERVERS` is set. |
 | 6 | **Add DNS prefetch/preconnect headers** | ✅ Done | `RedirectResponseHelper.php` now adds `Link: <scheme://host>; rel=dns-prefetch` header to all redirect responses, reducing redirect chain latency. |
 | 7 | **Batch dev Dockerfile extension installs** | ✅ Done | Both `roadrunner.Dockerfile` and `frankenphp.Dockerfile` consolidated: ~12 separate `RUN` commands → 2 (one for all extensions + one for PIE/Xdebug). |
+| 8 | **Add OPcache preloading** | ✅ Done | Created `config/opcache-preload.php` that reads Composer's `autoload_classmap.php` and preloads all classes via `opcache_compile_file()`. Added `opcache.preload` directive to production `php.ini`. |
+| 9 | **Create production RoadRunner config** | ✅ Done | Created `config/roadrunner/.rr.yml` with worker pool tuning: `num_workers: 0` (auto), `max_jobs: 500`, supervisor (128MB HTTP / 256MB jobs), `prefetch: 100`. Env var overrides supported. |
+| 10 | **Remove double compression** | ✅ Done | Removed `gzip` from RoadRunner production middleware — Caddy handles all compression with `encode gzip zstd`. |
+| 11 | **Bare metal deployment guide** | ✅ Done | Complete guide in `deployment.md`: PHP 8.5, MySQL 8.0, Redis 7.4, Caddy 2, RoadRunner, systemd services, nginx dashboard. Includes Docker uninstall/migration instructions. |
 
 ### Security Hardening
 

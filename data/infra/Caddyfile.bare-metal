@@ -1,26 +1,29 @@
-# Dhiarlink — Caddy Reverse Proxy (Docker)
+# Dhiarlink — Caddy Reverse Proxy (Bare Metal / Non-Docker)
 #
-# Listens on port 80 (mapped to host:3000 in docker-compose.prod.yml).
-# Routes requests to the correct backend based on hostname.
+# This Caddyfile is for native Caddy running directly on the host.
+# RoadRunner and the dashboard both run on the same machine.
 #
-# Hostnames:
-#   www.dhiarr.qzz.io  → Dhiarlink backend (landing page + API + redirects)
-#   app.dhiarr.qzz.io  → dhiarlink-web-client dashboard (React SPA)
-#   link.dhiarr.qzz.io → Dhiarlink backend (short URL redirects)
+# Installation:
+#   sudo cp data/infra/Caddyfile.bare-metal /etc/caddy/Caddyfile
+#   sudo systemctl restart caddy
+#
+# Caddy listens on port 3000 for cloudflared (system service).
+# RoadRunner runs on localhost:8080.
+# Dashboard (nginx) runs on localhost:8081.
 
 {
 	admin off
 	auto_https off
 }
 
-:80 {
+:3000 {
 	# Enable gzip + zstd compression for all responses
 	encode gzip zstd
 
 	# --- www.dhiarr.qzz.io — Landing page + REST API + redirect engine ---
 	@landing host www.dhiarr.qzz.io
 	handle @landing {
-		reverse_proxy dhiarlink:8080 {
+		reverse_proxy 127.0.0.1:8080 {
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
 			header_up X-Real-Ip {remote_host}
@@ -30,7 +33,7 @@
 	# --- app.dhiarr.qzz.io — Dashboard (dhiarlink-web-client) ---
 	@dashboard host app.dhiarr.qzz.io
 	handle @dashboard {
-		reverse_proxy dhiarlink_dashboard:8080 {
+		reverse_proxy 127.0.0.1:8081 {
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
 			header_up X-Real-Ip {remote_host}
@@ -40,7 +43,7 @@
 	# --- link.dhiarr.qzz.io — Short URL redirects ---
 	@shortlinks host link.dhiarr.qzz.io
 	handle @shortlinks {
-		reverse_proxy dhiarlink:8080 {
+		reverse_proxy 127.0.0.1:8080 {
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
 			header_up X-Real-Ip {remote_host}
