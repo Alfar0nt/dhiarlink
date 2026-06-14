@@ -1128,7 +1128,7 @@ sudo apt autoremove -y
 
 ### Step 4: Set Up Bare Metal
 
-Follow the complete [Bare Metal Deployment](#bare-metal-deployment-no-docker) guide below to set up your fresh environment. It covers everything from scratch — PHP, MySQL, Redis, RoadRunner, Caddy, and the dashboard.
+Follow the complete [Bare Metal Deployment](#bare-metal-deployment-no-docker) guide below to set up your fresh environment. It covers everything from scratch — PHP, MariaDB, Redis, RoadRunner, Caddy, and the dashboard.
 
 ---
 
@@ -1164,9 +1164,9 @@ This guide deploys Dhiarlink natively on a Debian 13 server from scratch — no 
                      │ (port 8080)│ │ Dashboard SPA    │
                      └──┬──────┬─┘ └──────────────────┘
                         │      │
-                     ┌──▼──┐ ┌─▼─────┐
-                     │MySQL│ │Redis  │
-                     └─────┘ └───────┘
+                     ┌───▼───┐ ┌─▼─────┐
+                     │MariaDB│ │Redis  │
+                     └───────┘ └───────┘
 ```
 
 All services run natively on the same host — no containerization overhead.
@@ -1186,7 +1186,7 @@ All services run natively on the same host — no containerization overhead.
 |----------|---------|---------|
 | PHP | 8.4 | Application runtime |
 | RoadRunner | Latest | High-performance PHP app server |
-| MySQL | 8.0 | Database |
+| MariaDB | 11.x | Database (MySQL-compatible) |
 | Redis | 7.4 | Caching + pub/sub |
 | Caddy | 2.x | Reverse proxy + compression |
 | Composer | 2.x | PHP dependency manager |
@@ -1283,6 +1283,13 @@ realpath_cache_size=4096K
 realpath_cache_ttl=600
 ```
 
+> **Important — ordering note:** The `opcache.preload` line references `/opt/dhiarlink/config/opcache-preload.php`, which doesn't exist until you clone the repo in Step 6. **Comment out the two preload lines** for now by adding `;` at the start:
+> ```ini
+> ;opcache.preload=/opt/dhiarlink/config/opcache-preload.php
+> ;opcache.preload_user=dhiarlink
+> ```
+> You'll uncomment them after cloning the repo in Step 6.
+
 Verify:
 
 ```bash
@@ -1292,20 +1299,22 @@ php -m | grep -E 'opcache|apcu|pdo_mysql|intl|mbstring|curl|sockets|bcmath|zip|c
 
 ---
 
-### Step 3: Install and Configure MySQL 8.0
+### Step 3: Install and Configure MariaDB
 
-This is a fresh database setup — no prior data or migration needed.
+MariaDB is the default MySQL-compatible database on Debian 13. It works identically with Dhiarlink — same `pdo_mysql` driver, same SQL, same Doctrine ORM.
 
 ```bash
-# Install MySQL server
-sudo apt install -y mysql-server
+# Install MariaDB server
+sudo apt install -y mariadb-server
 
 # Secure the installation
-sudo mysql_secure_installation
+sudo mariadb-secure-installation
 ```
 
-During `mysql_secure_installation`, answer:
+During `mariadb-secure-installation`, answer:
+- Enter current password for root: **press Enter** (none set by default)
 - Set root password: **Yes** — choose a strong password and save it somewhere safe
+- Switch to unix_socket authentication: **No** (keep password-based auth)
 - Remove anonymous users: **Yes**
 - Disallow root login remotely: **Yes**
 - Remove test database: **Yes**
@@ -1314,7 +1323,7 @@ During `mysql_secure_installation`, answer:
 #### Create the Dhiarlink Database and User
 
 ```bash
-sudo mysql -u root -p
+sudo mariadb -u root -p
 ```
 
 Run these SQL commands to create the database, user, and grant permissions:
@@ -1346,15 +1355,15 @@ EXIT;
 Test that the new user can connect and access the database:
 
 ```bash
-mysql -u dhiarlink -p -e "SHOW DATABASES;"
+mariadb -u dhiarlink -p -e "SHOW DATABASES;"
 # Enter the dhiarlink user password when prompted
 # Should show: information_schema, dhiarlink
 ```
 
-#### Tune MySQL for Performance
+#### Tune MariaDB for Performance
 
 ```bash
-sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
+sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
 ```
 
 Add or modify these settings under `[mysqld]`:
@@ -1370,9 +1379,6 @@ innodb_flush_method = O_DIRECT
 # Connection limits
 max_connections = 100
 
-# Query cache (disabled — InnoDB buffer pool is more efficient)
-query_cache_type = 0
-
 # Character set
 character-set-server = utf8mb4
 collation-server = utf8mb4_unicode_ci
@@ -1384,11 +1390,11 @@ long_query_time = 2
 ```
 
 ```bash
-sudo systemctl restart mysql
-sudo systemctl enable mysql
+sudo systemctl restart mariadb
+sudo systemctl enable mariadb
 
-# Verify MySQL is running
-sudo systemctl status mysql
+# Verify MariaDB is running
+sudo systemctl status mariadb
 ```
 
 ---
@@ -1462,6 +1468,22 @@ composer install --no-dev --prefer-dist --optimize-autoloader --no-progress --no
 
 # Generate the optimized class map (required for OPcache preloading)
 composer dump-autoload --optimize --classmap-authoritative
+```
+
+#### Enable OPcache Preloading
+
+Now that the repo is cloned, uncomment the preload lines in the PHP config:
+
+```bash
+# Exit back to your sudo user first
+exit
+
+# Uncomment the preload directives
+sudo sed -i 's/^;opcache.preload=/opcache.preload=/' /etc/php/8.4/cli/conf.d/99-dhiarlink.ini
+sudo sed -i 's/^;opcache.preload_user=/opcache.preload_user=/' /etc/php/8.4/cli/conf.d/99-dhiarlink.ini
+
+# Verify
+php -v  # Should run without preload errors
 ```
 
 #### Create the .env File
@@ -1696,7 +1718,7 @@ sudo systemctl status cloudflared
 ```bash
 # 1. Check all services are running
 sudo systemctl status dhiarlink     # RoadRunner
-sudo systemctl status mysql         # Database
+sudo systemctl status mariadb      # Database
 sudo systemctl status redis-server  # Cache
 sudo systemctl status caddy         # Reverse proxy
 sudo systemctl status nginx         # Dashboard
@@ -1770,8 +1792,8 @@ sudo journalctl -u dhiarlink -f
 # Caddy
 sudo journalctl -u caddy -f
 
-# MySQL
-sudo journalctl -u mysql -f
+# MariaDB
+sudo journalctl -u mariadb -f
 
 # Redis
 sudo journalctl -u redis-server -f
@@ -1808,8 +1830,8 @@ crontab -e
 | **PHP OPcache** | `opcache.validate_timestamps` | `0` | Same file |
 | **PHP OPcache** | `opcache.preload` | `/opt/dhiarlink/config/opcache-preload.php` | Same file |
 | **PHP APCu** | `apc.shm_size` | `64M` | Same file |
-| **MySQL** | `innodb_buffer_pool_size` | `256M` | `/etc/mysql/mysql.conf.d/mysqld.cnf` |
-| **MySQL** | `max_connections` | `100` | Same file |
+| **MariaDB** | `innodb_buffer_pool_size` | `256M` | `/etc/mysql/mariadb.conf.d/50-server.cnf` |
+| **MariaDB** | `max_connections` | `100` | Same file |
 | **Redis** | `maxmemory` | `128mb` | `/etc/redis/redis.conf` |
 | **Redis** | `maxmemory-policy` | `allkeys-lru` | Same file |
 | **RoadRunner** | `WEB_WORKER_NUM` | `0` (auto) | `/opt/dhiarlink/.env` |
