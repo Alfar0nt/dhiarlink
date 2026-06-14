@@ -1512,6 +1512,11 @@ CORS_ALLOW_ORIGIN=https://app.dhiarr.qzz.io
 APP_ENV=prod
 DHIARLINK_RUNTIME=rr
 
+# RoadRunner workers (required — no defaults in .rr.yml)
+WEB_WORKER_NUM=0          # 0 = auto-detect CPU cores
+TASK_WORKER_NUM=0         # 0 = auto-detect CPU cores
+LOGS_FORMAT=json          # 'console' for human-readable, 'json' for structured
+
 # Dashboard pre-config
 DHIARLINK_SERVER_URL=https://www.dhiarr.qzz.io
 DHIARLINK_SERVER_API_KEY=YOUR_API_KEY
