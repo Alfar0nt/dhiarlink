@@ -86,7 +86,7 @@ From the Proxmox web UI or CLI, create a new LXC container with these settings:
 
 | Setting | Recommended Value |
 |---------|-------------------|
-| **Template** | Debian 12 (Bookworm) or Ubuntu 24.04 LTS |
+| **Template** | Debian 13 (Trixie) |
 | **Hostname** | `dhiarlink` |
 | **CPU cores** | 2 (minimum) |
 | **Memory** | 2048 MB (4096 MB recommended) |
@@ -1134,9 +1134,9 @@ Follow the complete [Bare Metal Deployment](#bare-metal-deployment-no-docker) gu
 
 ## Bare Metal Deployment (No Docker)
 
-This guide deploys Dhiarlink natively on a Debian/Ubuntu server from scratch — no Docker, no containers, no prior installation needed. All services run directly on the host for maximum raw performance.
+This guide deploys Dhiarlink natively on a Debian 13 server from scratch — no Docker, no containers, no prior installation needed. All services run directly on the host for maximum raw performance.
 
-**Target environment:** Debian 12 (Bookworm) or Ubuntu 24.04 LTS + Cloudflare Tunnel
+**Target environment:** Debian 13 (Trixie) + Cloudflare Tunnel
 
 > **Fresh setup:** This guide assumes a clean server. Every step is self-contained — you don't need an existing Docker installation or any prior Dhiarlink data.
 
@@ -1178,13 +1178,13 @@ All services run natively on the same host — no containerization overhead.
 | **CPU** | 2 cores | 4 cores |
 | **RAM** | 2 GB | 4 GB |
 | **Disk** | 20 GB SSD | 40 GB SSD |
-| **OS** | Debian 12 or Ubuntu 24.04 | Debian 12 |
+| **OS** | Debian 13 (Trixie) | Debian 13 |
 
 ### Dependencies Overview
 
 | Software | Version | Purpose |
 |----------|---------|---------|
-| PHP | 8.4+ or 8.5 | Application runtime |
+| PHP | 8.4 | Application runtime |
 | RoadRunner | Latest | High-performance PHP app server |
 | MySQL | 8.0 | Database |
 | Redis | 7.4 | Caching + pub/sub |
@@ -1216,44 +1216,35 @@ sudo chown dhiarlink:dhiarlink /opt/dhiarlink
 
 ---
 
-### Step 2: Install PHP 8.5
+### Step 2: Install PHP 8.4
 
-PHP 8.5 is available from the [deb.sury.org](https://deb.sury.org/) repository (Ondrej Sury's PPA).
+PHP 8.4 is available in Debian 13's standard repositories — no third-party PPA needed.
 
 ```bash
-# Add the PHP repository
-sudo apt install -y lsb-release ca-certificates apt-transport-https software-properties-common
-sudo curl -sSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb
-sudo dpkg -i /tmp/debsuryorg-archive-keyring.deb
-sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
-sudo apt update
-
 # Install PHP and all required extensions
 sudo apt install -y \
-    php8.5-cli \
-    php8.5-curl \
-    php8.5-mbstring \
-    php8.5-intl \
-    php8.5-bcmath \
-    php8.5-sockets \
-    php8.5-zip \
-    php8.5-calendar \
-    php8.5-mysql \
-    php8.5-pgsql \
-    php8.5-sqlite3 \
-    php8.5-apcu \
-    php8.5-opcache \
-    php8.5-xml
+    php8.4-cli \
+    php8.4-curl \
+    php8.4-mbstring \
+    php8.4-intl \
+    php8.4-bcmath \
+    php8.4-sockets \
+    php8.4-zip \
+    php8.4-calendar \
+    php8.4-mysql \
+    php8.4-pgsql \
+    php8.4-sqlite3 \
+    php8.4-apcu \
+    php8.4-opcache \
+    php8.4-xml
 ```
-
-> **Note:** If PHP 8.5 is not yet available, PHP 8.4 works as well. Replace `php8.5` with `php8.4` in all commands.
 
 #### Configure PHP for Production
 
 Create a production php.ini override:
 
 ```bash
-sudo nano /etc/php/8.5/cli/conf.d/99-dhiarlink.ini
+sudo nano /etc/php/8.4/cli/conf.d/99-dhiarlink.ini
 ```
 
 ```ini
@@ -1813,7 +1804,7 @@ crontab -e
 
 | Component | Setting | Value | File |
 |-----------|---------|-------|------|
-| **PHP OPcache** | `opcache.memory_consumption` | `256` | `/etc/php/8.5/cli/conf.d/99-dhiarlink.ini` |
+| **PHP OPcache** | `opcache.memory_consumption` | `256` | `/etc/php/8.4/cli/conf.d/99-dhiarlink.ini` |
 | **PHP OPcache** | `opcache.validate_timestamps` | `0` | Same file |
 | **PHP OPcache** | `opcache.preload` | `/opt/dhiarlink/config/opcache-preload.php` | Same file |
 | **PHP APCu** | `apc.shm_size` | `64M` | Same file |
