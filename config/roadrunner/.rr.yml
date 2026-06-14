@@ -22,7 +22,7 @@ server:
 http:
   address: '0.0.0.0:8080'
   middleware: ['static']
-  max_request_size: 10M
+  max_request_size: 10485760  # 10 MB
   static:
     dir: '../../public'
     forbid: ['.php', '.htaccess']

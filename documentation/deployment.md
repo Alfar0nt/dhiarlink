@@ -1544,7 +1544,7 @@ php vendor/bin/rr get --no-interaction --no-config --location bin/
 chmod +x bin/rr
 
 # Verify
-bin/rr version
+bin/rr --version
 ```
 
 #### Test the Server
