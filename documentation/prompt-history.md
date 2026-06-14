@@ -12,6 +12,7 @@
 - [Session 4: Documentation Overhaul](#session-4-documentation-overhaul)
 - [Session 5: Landing Page Mobile Fix & Social Links](#session-5-landing-page-mobile-fix--social-links)
 - [Session 6: Performance Optimization & Bare Metal Deployment](#session-6-performance-optimization--bare-metal-deployment)
+- [Session 7: Fresh Bare Metal Guide & Docker Migration Cleanup](#session-7-fresh-bare-metal-guide--docker-migration-cleanup)
 
 ---
 
@@ -375,5 +376,38 @@ Client → Cloudflare Edge (TLS) → cloudflared (system service) → localhost:
 2. `.env` and GeoLite DB backup
 3. Stop and remove Docker stack (`down --rmi all -v`)
 4. Optional Docker uninstall (`apt remove docker-ce...`)
-5. Database restore into native MySQL
-6. Continue with bare metal setup
+5. Set up fresh bare metal environment
+
+---
+
+## Session 7: Fresh Bare Metal Guide & Docker Migration Cleanup
+
+### Prompt 7: Update bare metal guide for fresh setup
+
+**User asked:**
+1. Update the bare metal deployment guide — user is setting up a brand new environment (no existing Docker data to migrate)
+2. Remove the "create/restore database" from Docker migration section, add a proper database creation guide in the bare metal section
+3. Update prompt-history.md and CHANGELOG.md
+
+**Problem identified:** The bare metal guide was originally written as a migration path from Docker. The user is deploying on a fresh server with no existing data, so references to "restoring database from backup" and "skipping database creation" were confusing and unnecessary.
+
+**Changes made:**
+
+| File | Change |
+|------|--------|
+| `documentation/deployment.md` | Restructured: removed "Restore Your Database" step from Docker migration; expanded MySQL section with comprehensive fresh database creation (secure install walkthrough, SQL with comments, user verification step); updated bare metal intro to emphasize fresh standalone setup; improved "Initialize the Database" section with clearer context |
+| `CHANGELOG.md` | Added full Unreleased section with Added/Changed entries for all Session 6+7 work |
+| `documentation/prompt-history.md` | This session entry |
+
+**Bare metal MySQL section now includes:**
+1. `mysql_secure_installation` walkthrough with expected answers
+2. Full SQL with comments explaining each command
+3. `SHOW DATABASES` and user verification queries
+4. "Verify Database Access" step — test that `dhiarlink` user can connect independently
+5. Password reminder note pointing to Step 6 `.env` configuration
+6. Performance tuning (InnoDB, connection limits, slow query log)
+
+**Docker migration section simplified:**
+- Removed: Step 4 (Restore Your Database) and Step 5 (Continue with Bare Metal Setup)
+- Added: Step 4 (Set Up Bare Metal) — points directly to the complete bare metal guide
+- Migration section now covers: backup → stop Docker → remove Docker → set up fresh bare metal

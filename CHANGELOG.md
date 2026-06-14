@@ -5,12 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com), and this project adheres to [Semantic Versioning](https://semver.org).
 
 ## [Unreleased] — Dhiarlink Fork
+### Added
+* Complete bare metal deployment guide (no Docker) — step-by-step fresh setup with PHP 8.5, MySQL 8.0, Redis 7.4, RoadRunner, Caddy, and nginx dashboard.
+* Docker-to-bare-metal migration guide with clean Docker removal instructions.
+* Production RoadRunner config (`config/roadrunner/.rr.yml`) with env var overrides and worker pool tuning.
+* OPcache class preloading script (`config/opcache-preload.php`) for zero first-request compilation overhead.
+* `.env.example` with complete environment variable reference for both Docker and bare metal.
+* `docker-compose.prod.yml` — 5-service production Docker stack (Dhiarlink, MySQL, Redis, Caddy, Dashboard).
+* Bare metal Caddy config (`data/infra/Caddyfile.bare-metal`) and systemd service (`data/infra/systemd/dhiarlink.service`).
+
 ### Changed
 * Rebranded from Shlink to Dhiarlink. Updated all user-facing branding, templates, Docker container names, and documentation.
 * Redesigned error pages (404, invalid short code) with terminal-dark-green theme.
 * Added SVG favicon with terminal prompt aesthetic.
 * Renamed RoadRunner job pipelines and Docker infrastructure to `dhiarlink_*`.
 * Updated health endpoint, Swagger docs, and build scripts with Dhiarlink branding.
+* Removed gzip middleware from RoadRunner — Caddy handles all compression (gzip + zstd) to avoid double-compression overhead.
+* Added `opcache.preload` to Docker `php.ini` for OPcache class preloading at container startup.
 
 
 ## [5.1.0] - 2026-06-11

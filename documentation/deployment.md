@@ -1126,26 +1126,19 @@ sudo groupdel docker 2>/dev/null || true
 sudo apt autoremove -y
 ```
 
-### Step 4: Restore Your Database
+### Step 4: Set Up Bare Metal
 
-After installing MySQL natively (see bare metal guide below), import your backup:
-
-```bash
-# Create the database and user first (see Step 4 of bare metal guide)
-mysql -u root -p < ~/dhiarlink-full-backup.sql
-```
-
-### Step 5: Continue with Bare Metal Setup
-
-Follow the [Bare Metal Deployment](#bare-metal-deployment-no-docker) guide below, skipping the database creation step since you already restored your data.
+Follow the complete [Bare Metal Deployment](#bare-metal-deployment-no-docker) guide below to set up your fresh environment. It covers everything from scratch — PHP, MySQL, Redis, RoadRunner, Caddy, and the dashboard.
 
 ---
 
 ## Bare Metal Deployment (No Docker)
 
-This guide deploys Dhiarlink natively on a Debian/Ubuntu server without Docker, for maximum raw performance. All services run directly on the host.
+This guide deploys Dhiarlink natively on a Debian/Ubuntu server from scratch — no Docker, no containers, no prior installation needed. All services run directly on the host for maximum raw performance.
 
 **Target environment:** Debian 12 (Bookworm) or Ubuntu 24.04 LTS + Cloudflare Tunnel
+
+> **Fresh setup:** This guide assumes a clean server. Every step is self-contained — you don't need an existing Docker installation or any prior Dhiarlink data.
 
 ### Architecture
 
@@ -1308,7 +1301,9 @@ php -m | grep -E 'opcache|apcu|pdo_mysql|intl|mbstring|curl|sockets|bcmath|zip|c
 
 ---
 
-### Step 3: Install MySQL 8.0
+### Step 3: Install and Configure MySQL 8.0
+
+This is a fresh database setup — no prior data or migration needed.
 
 ```bash
 # Install MySQL server
@@ -1318,18 +1313,51 @@ sudo apt install -y mysql-server
 sudo mysql_secure_installation
 ```
 
-#### Create Database and User
+During `mysql_secure_installation`, answer:
+- Set root password: **Yes** — choose a strong password and save it somewhere safe
+- Remove anonymous users: **Yes**
+- Disallow root login remotely: **Yes**
+- Remove test database: **Yes**
+- Reload privilege tables: **Yes**
+
+#### Create the Dhiarlink Database and User
 
 ```bash
 sudo mysql -u root -p
 ```
 
+Run these SQL commands to create the database, user, and grant permissions:
+
 ```sql
+-- Create the database with proper UTF-8 encoding
 CREATE DATABASE dhiarlink CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Create a dedicated user (replace YOUR_SECURE_PASSWORD with a real password)
 CREATE USER 'dhiarlink'@'localhost' IDENTIFIED BY 'YOUR_SECURE_PASSWORD';
+
+-- Grant full privileges on the dhiarlink database only
 GRANT ALL PRIVILEGES ON dhiarlink.* TO 'dhiarlink'@'localhost';
+
+-- Apply changes
 FLUSH PRIVILEGES;
+
+-- Verify the database and user exist
+SHOW DATABASES;
+SELECT user, host FROM mysql.user WHERE user = 'dhiarlink';
+
 EXIT;
+```
+
+> **Important:** Write down the `dhiarlink` user password — you'll need it for the `.env` file in Step 6.
+
+#### Verify Database Access
+
+Test that the new user can connect and access the database:
+
+```bash
+mysql -u dhiarlink -p -e "SHOW DATABASES;"
+# Enter the dhiarlink user password when prompted
+# Should show: information_schema, dhiarlink
 ```
 
 #### Tune MySQL for Performance
@@ -1367,6 +1395,9 @@ long_query_time = 2
 ```bash
 sudo systemctl restart mysql
 sudo systemctl enable mysql
+
+# Verify MySQL is running
+sudo systemctl status mysql
 ```
 
 ---
@@ -1477,16 +1508,20 @@ DHIARLINK_SERVER_FORWARD_CREDENTIALS=false
 
 #### Initialize the Database
 
+The installer will create all tables, indexes, and the database schema in the empty `dhiarlink` database you created in Step 3.
+
 ```bash
 # Create data directories
 mkdir -p data/cache data/locks data/log data/proxies data/temp-geolite
 
-# Run the installer (creates schema, runs migrations)
+# Run the installer — this creates the full schema and runs all migrations
 php vendor/bin/shlink-installer init --no-interaction --clear-db-cache
 
-# Generate your first API key
+# Generate your first API key (needed for the dashboard)
 bin/cli api-key:generate
 ```
+
+> **Tip:** Copy the generated API key — you'll need it for the `DHIARLINK_SERVER_API_KEY` in the dashboard configuration.
 
 #### Download RoadRunner Binary
 
