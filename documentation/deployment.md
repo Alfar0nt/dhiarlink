@@ -1497,6 +1497,7 @@ Key differences from Docker — update these values:
 
 ```env
 # Database: localhost instead of Docker hostname
+DB_DRIVER=maria
 DB_HOST=localhost
 DB_USER=dhiarlink
 DB_PASSWORD=YOUR_SECURE_PASSWORD
@@ -1523,6 +1524,25 @@ DHIARLINK_SERVER_API_KEY=YOUR_API_KEY
 DHIARLINK_SERVER_NAME=Dhiarlink
 DHIARLINK_SERVER_FORWARD_CREDENTIALS=false
 ```
+
+#### Create config/params/prod.php (CLI Config)
+
+On bare metal, `bin/cli` commands do NOT load systemd's `EnvironmentFile`.
+The application reads `config/params/*.php` files for environment configuration.
+Create this file so CLI commands use the correct bare metal values:
+
+```bash
+cp config/params/prod.php.dist config/params/prod.php
+nano config/params/prod.php
+```
+
+Update the values to match your `.env` (database password, domain, etc.).
+
+> **IMPORTANT — Config Precedence:**
+> - **RoadRunner (systemd):** loads `.env` via `EnvironmentFile=` → these override everything
+> - **CLI commands (`bin/cli`):** do NOT load `.env` → reads `config/params/*.php` instead
+> - Both files must have matching values for consistent behavior.
+
 
 #### Initialize the Database
 

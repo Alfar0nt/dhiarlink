@@ -15,6 +15,7 @@
 - [Session 7: Fresh Bare Metal Guide & Docker Migration Cleanup](#session-7-fresh-bare-metal-guide--docker-migration-cleanup)
 - [Session 8: Bare Metal Deployment Debugging & Stabilization](#session-8-bare-metal-deployment-debugging--stabilization)
 - [Session 9: Bare Metal Post-Deployment Debugging](#session-9-bare-metal-post-deployment-debugging)
+- [Session 9b: Redis Hostname & systemd EnvironmentFile Precedence](#session-9b-redis-hostname--systemd-environmentfile-precedence)
 
 ---
 
@@ -418,6 +419,7 @@ Client → Cloudflare Edge (TLS) → cloudflared (system service) → localhost:
 
 ## Session 8: Bare Metal Deployment Debugging & Stabilization
 - [Session 9: Bare Metal Post-Deployment Debugging](#session-9-bare-metal-post-deployment-debugging)
+- [Session 9b: Redis Hostname & systemd EnvironmentFile Precedence](#session-9b-redis-hostname--systemd-environmentfile-precedence)
 
 ### Prompt 8: Live bare metal deployment — fix all issues encountered during actual setup
 
@@ -470,6 +472,7 @@ Client → Cloudflare Edge (TLS) → cloudflared (system service) → localhost:
 ---
 
 ## Session 9: Bare Metal Post-Deployment Debugging
+- [Session 9b: Redis Hostname & systemd EnvironmentFile Precedence](#session-9b-redis-hostname--systemd-environmentfile-precedence)
 
 ### Prompt 9: Fix bare metal deployment issues — database, OPcache, pipeline, and env config
 
@@ -506,3 +509,43 @@ Client → Cloudflare Edge (TLS) → cloudflared (system service) → localhost:
 4. Vendor packages (like `shlinkio/shlink-event-dispatcher`) hardcode pipeline name `shlink` — renaming breaks async task dispatch
 5. `DB_DRIVER` must be `maria` (not `mysql`) for MariaDB on Debian 13
 6. After re-initializing the database, a new API key must be generated (old key is in the old database)
+
+---
+
+## Session 9b: Redis Hostname & systemd EnvironmentFile Precedence
+
+### Prompt 9b: Fix Redis hostname still resolving to Docker container name after config changes
+
+**User asked:** After clearing cache and restarting RoadRunner, the Redis error still shows `dhiarlink_redis:6379` instead of `127.0.0.1:6379`.
+
+**Root cause discovered:** The systemd service has `EnvironmentFile=/opt/dhiarlink/.env` which loads the `.env` file as **real environment variables**. The `.env` file contained Docker hostnames (`REDIS_SERVERS=tcp://dhiarlink_redis:6379`). Since `env()` checks `getenv()` first, the systemd-injected `.env` value takes precedence over `config/params/prod.php`.
+
+**Why `bin/cli env-var:read` showed correct value:** CLI commands don't load systemd's EnvironmentFile, so they only see `config/params/prod.php` values.
+
+**Fix:**
+```bash
+sudo sed -i 's|REDIS_SERVERS=tcp://dhiarlink_redis:6379|REDIS_SERVERS=tcp://127.0.0.1:6379|' /opt/dhiarlink/.env
+sudo systemctl restart dhiarlink
+```
+
+**Files modified (source code):**
+
+| File | Change |
+|------|--------|
+| `.env.example` | Added prominent warning about systemd EnvironmentFile precedence; added bare metal override section |
+| `config/params/prod.php.dist` | New file — production PHP config template for bare metal CLI commands |
+
+**Files modified (documentation):**
+
+| File | Change |
+|------|--------|
+| `documentation/deployment.md` | Added "Create config/params/prod.php" step in bare metal guide; added config precedence explanation; added `DB_DRIVER=maria` to bare metal `.env` values |
+| `CHANGELOG.md` | Added entries for prod.php.dist, systemd EnvironmentFile precedence fix |
+| `documentation/prompt-history.md` | This session entry |
+
+**Key learnings:**
+1. systemd `EnvironmentFile=` injects `.env` values as real environment variables via `getenv()`
+2. `EnvVars::loadFromEnv()` checks `env()` (getenv) → `loadFromFileEnv()` (_FILE suffix) → `defaultValue()` — systemd-injected env vars always win
+3. `config/params/*.php` only matters for CLI commands (which don't load systemd EnvironmentFile)
+4. Both `.env` and `config/params/prod.php` must have matching bare metal values for consistent behavior
+5. Config cache (`data/cache/app_config.php`) must be deleted after env changes, then RoadRunner stopped → cache deleted → started (not just restart)

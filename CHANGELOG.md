@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com), and this 
 * Production RoadRunner config (`config/roadrunner/.rr.yml`) with env var overrides and worker pool tuning.
 * OPcache class preloading script (`config/opcache-preload.php`) for zero first-request compilation overhead.
 * `.env.example` with complete environment variable reference for both Docker and bare metal.
+* `config/params/prod.php.dist` — production PHP config template for bare metal CLI commands (provides env vars when systemd EnvironmentFile is not loaded).
 * `docker-compose.prod.yml` — 5-service production Docker stack (Dhiarlink, MySQL, Redis, Caddy, Dashboard).
 * Bare metal Caddy config (`data/infra/Caddyfile.bare-metal`) and systemd service (`data/infra/systemd/dhiarlink.service`).
 
@@ -30,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com), and this 
 * Systemd service: Fixed `mysql.service` → `mariadb.service` and `redis.service` → `redis-server.service` dependencies for Debian 13.
 * Bare metal deployment: PHP 8.4 from Debian 13 standard repos (no PPA), MariaDB instead of MySQL, proper OPcache preload ordering (after repo clone).
 * RoadRunner jobs pipeline must be named `shlink` (not `dhiarlink`) — the vendor package `shlinkio/shlink-event-dispatcher` hardcodes this name for visit tracking. Renaming causes `no such pipeline, requested: shlink` error and 500 Internal Server Error on all short URL redirects.
+* systemd `EnvironmentFile` loads `.env` as real env vars that OVERRIDE `config/params/*.php` — bare metal `.env` must use localhost hostnames, not Docker container names (e.g., `REDIS_SERVERS=tcp://127.0.0.1:6379` not `tcp://dhiarlink_redis:6379`).
 
 
 ## [5.1.0] - 2026-06-11

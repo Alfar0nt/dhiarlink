@@ -1,0 +1,52 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Dhiarlink — Production Environment Config (bare metal)
+ *
+ * Copy this file to prod.php and fill in your values:
+ *   cp prod.php.dist prod.php
+ *
+ * IMPORTANT — Config loading precedence:
+ *   1. systemd EnvironmentFile (.env) — loaded as real env vars by systemd
+ *   2. config/params/*.php — loaded by container.php via loadEnvVarsFromConfig()
+ *   3. Default values in EnvVars enum
+ *
+ * For Docker deployments, this file is NOT needed — Docker Compose passes
+ * env vars from .env directly into containers.
+ *
+ * For bare metal deployments, this file provides fallback config for CLI
+ * commands (which don't load systemd's EnvironmentFile).
+ */
+
+use Shlinkio\Shlink\Core\Config\EnvVars;
+
+return [
+    EnvVars::APP_ENV->value => 'prod',
+
+    // URL shortener
+    EnvVars::DEFAULT_DOMAIN->value => 'link.dhiarr.qzz.io',
+    EnvVars::IS_HTTPS_ENABLED->value => true,
+
+    // Database — MariaDB (Debian 13)
+    EnvVars::DB_DRIVER->value => 'maria',
+    EnvVars::DB_USER->value => 'dhiarlink',
+    EnvVars::DB_PASSWORD->value => '<your-secure-db-password>',
+    EnvVars::DB_NAME->value => 'dhiarlink',
+    EnvVars::DB_HOST->value => 'localhost',
+    EnvVars::DB_PORT->value => '3306',
+
+    // Redis
+    EnvVars::REDIS_SERVERS->value => 'tcp://127.0.0.1:6379',
+    EnvVars::REDIS_PUB_SUB_ENABLED->value => true,
+
+    // Behind Cloudflare Tunnel
+    EnvVars::TRUSTED_PROXIES->value => 1,
+
+    // CORS — allow the web client dashboard
+    EnvVars::CORS_ALLOW_ORIGIN->value => 'https://app.dhiarr.qzz.io',
+
+    // RoadRunner
+    EnvVars::LOGS_FORMAT->value => 'console',
+];
