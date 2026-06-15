@@ -38,7 +38,7 @@ PrivateTmp=true
 
 # Resource limits
 LimitNOFILE=65536
-MemoryMax=512M
+MemoryMax=1G
 
 # Logging
 StandardOutput=journal
