@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com), and this 
 * Rebranded from Shlink to Dhiarlink. Updated all user-facing branding, templates, Docker container names, and documentation.
 * Redesigned error pages (404, invalid short code) with terminal-dark-green theme.
 * Added SVG favicon with terminal prompt aesthetic.
-* Renamed RoadRunner job pipelines and Docker infrastructure to `dhiarlink_*`.
+* Docker infrastructure renamed to `dhiarlink_*`. RoadRunner jobs pipeline kept as `shlink` (vendor code hardcodes this name).
 * Updated health endpoint, Swagger docs, and build scripts with Dhiarlink branding.
 * Removed gzip middleware from RoadRunner — Caddy handles all compression (gzip + zstd) to avoid double-compression overhead.
 * Added `opcache.preload` to Docker `php.ini` for OPcache class preloading at container startup.
@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com), and this 
 * RoadRunner config: Removed `${VAR:-default}` envsubst syntax (not supported by RoadRunner) — defaults now set via `.env` and systemd `Environment=` directives.
 * Systemd service: Fixed `mysql.service` → `mariadb.service` and `redis.service` → `redis-server.service` dependencies for Debian 13.
 * Bare metal deployment: PHP 8.4 from Debian 13 standard repos (no PPA), MariaDB instead of MySQL, proper OPcache preload ordering (after repo clone).
+* RoadRunner jobs pipeline must be named `shlink` (not `dhiarlink`) — the vendor package `shlinkio/shlink-event-dispatcher` hardcodes this name for visit tracking. Renaming causes `no such pipeline, requested: shlink` error and 500 Internal Server Error on all short URL redirects.
 
 
 ## [5.1.0] - 2026-06-11

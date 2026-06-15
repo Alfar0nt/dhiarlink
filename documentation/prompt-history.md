@@ -14,6 +14,7 @@
 - [Session 6: Performance Optimization & Bare Metal Deployment](#session-6-performance-optimization--bare-metal-deployment)
 - [Session 7: Fresh Bare Metal Guide & Docker Migration Cleanup](#session-7-fresh-bare-metal-guide--docker-migration-cleanup)
 - [Session 8: Bare Metal Deployment Debugging & Stabilization](#session-8-bare-metal-deployment-debugging--stabilization)
+- [Session 9: Bare Metal Post-Deployment Debugging](#session-9-bare-metal-post-deployment-debugging)
 
 ---
 
@@ -416,6 +417,7 @@ Client → Cloudflare Edge (TLS) → cloudflared (system service) → localhost:
 ---
 
 ## Session 8: Bare Metal Deployment Debugging & Stabilization
+- [Session 9: Bare Metal Post-Deployment Debugging](#session-9-bare-metal-post-deployment-debugging)
 
 ### Prompt 8: Live bare metal deployment — fix all issues encountered during actual setup
 
@@ -464,3 +466,43 @@ Client → Cloudflare Edge (TLS) → cloudflared (system service) → localhost:
 5. `/.dockerenv` file reliably detects Docker vs bare metal environments
 6. RoadRunner workers take ~15-20 seconds to initialize (OPcache preload + class loading)
 7. cloudflared must use `http://` (not `https://`) when bare metal Caddy has `auto_https off`
+
+---
+
+## Session 9: Bare Metal Post-Deployment Debugging
+
+### Prompt 9: Fix bare metal deployment issues — database, OPcache, pipeline, and env config
+
+**User asked:** Web client dashboard connects to API but short URLs cannot be created or accessed. Multiple issues discovered during live bare metal usage.
+
+**Issues discovered and fixed:**
+
+| # | Issue | Root Cause | Fix |
+|---|-------|------------|-----|
+| 1 | `bin/cli` slow — `[opcache-preload] Preloaded 7498 files` on every command | `opcache.preload` set in CLI php.ini, runs on every PHP CLI invocation | Remove `opcache.preload` and `opcache.preload_user` from `/etc/php/8.4/cli/conf.d/99-dhiarlink.ini` |
+| 2 | `bin/cli env-var:read DB_DRIVER` returns `sqlite` | Application reads from `config/params/*.php`, NOT `.env` file | Create `config/params/prod.php` with all production env vars |
+| 3 | `bin/cli env-var:read DEFAULT_DOMAIN` returns empty | Same as #2 — `.env` is for Docker Compose/systemd, app reads PHP config files | Same as #2 |
+| 4 | `short-url:create` generates malformed URL `https:/E6IJC` | `DEFAULT_DOMAIN` empty → no domain in generated URL | Fixed by #2 |
+| 5 | 500 Internal Server Error on short URL redirects | RoadRunner jobs pipeline named `dhiarlink` but vendor code (`shlinkio/shlink-event-dispatcher`) hardcodes `shlink` | Renamed pipeline back to `shlink` in `.rr.yml` |
+| 6 | `--tags` option doesn't exist on `short-url:create` | CLI uses `--tag` (singular), can be repeated | Documentation fix |
+
+**Files modified (source code):**
+
+| File | Change |
+|------|--------|
+| `config/roadrunner/.rr.yml` | Renamed jobs pipeline from `dhiarlink` back to `shlink` in both `consume` and `pipelines` sections |
+
+**Files modified (documentation):**
+
+| File | Change |
+|------|--------|
+| `CHANGELOG.md` | Updated Changed entry about pipeline naming; added Fixed entry for pipeline name issue |
+| `documentation/prompt-history.md` | This session entry |
+
+**Key learnings:**
+1. Shlink/Dhiarlink does NOT read `.env` directly — it reads from `config/params/*.php` via `loadEnvVarsFromConfig()` in `container.php`
+2. `.env` is only used by Docker Compose (passes env vars to containers) or systemd `EnvironmentFile=`
+3. `opcache.preload` in CLI php.ini wastes 1-2 seconds per `bin/cli` invocation — only useful for long-running RoadRunner workers
+4. Vendor packages (like `shlinkio/shlink-event-dispatcher`) hardcode pipeline name `shlink` — renaming breaks async task dispatch
+5. `DB_DRIVER` must be `maria` (not `mysql`) for MariaDB on Debian 13
+6. After re-initializing the database, a new API key must be generated (old key is in the old database)
