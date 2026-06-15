@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com), and this 
 
 ## [Unreleased] — Dhiarlink Fork
 ### Added
-* Complete bare metal deployment guide (no Docker) — step-by-step fresh setup with PHP 8.5, MySQL 8.0, Redis 7.4, RoadRunner, Caddy, and nginx dashboard.
+* Complete bare metal deployment guide (no Docker) — step-by-step fresh setup for Debian 13 with PHP 8.4, MariaDB, Redis 7.4, RoadRunner, Caddy, and nginx dashboard.
 * Docker-to-bare-metal migration guide with clean Docker removal instructions.
 * Production RoadRunner config (`config/roadrunner/.rr.yml`) with env var overrides and worker pool tuning.
 * OPcache class preloading script (`config/opcache-preload.php`) for zero first-request compilation overhead.
@@ -22,6 +22,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com), and this 
 * Updated health endpoint, Swagger docs, and build scripts with Dhiarlink branding.
 * Removed gzip middleware from RoadRunner — Caddy handles all compression (gzip + zstd) to avoid double-compression overhead.
 * Added `opcache.preload` to Docker `php.ini` for OPcache class preloading at container startup.
+
+### Fixed
+* Bare metal logger: Access and Shlink loggers now write to files on bare metal (detected via `/.dockerenv` absence) instead of `php://stderr`, which caused `errno=9 Bad file descriptor` under RoadRunner workers.
+* RoadRunner config: `max_request_size` changed from `10M` to `10485760` (RoadRunner requires integer bytes, not human-readable strings).
+* RoadRunner config: Removed `${VAR:-default}` envsubst syntax (not supported by RoadRunner) — defaults now set via `.env` and systemd `Environment=` directives.
+* Systemd service: Fixed `mysql.service` → `mariadb.service` and `redis.service` → `redis-server.service` dependencies for Debian 13.
+* Bare metal deployment: PHP 8.4 from Debian 13 standard repos (no PPA), MariaDB instead of MySQL, proper OPcache preload ordering (after repo clone).
 
 
 ## [5.1.0] - 2026-06-11

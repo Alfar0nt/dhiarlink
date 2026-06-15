@@ -114,9 +114,9 @@ Dhiarlink is a fork of Shlink with cosmetic rebranding and infrastructure improv
                      │ (port 8080)│ │ Dashboard SPA    │
                      └──┬──────┬─┘ └──────────────────┘
                         │      │
-                     ┌──▼──┐ ┌─▼─────┐
-                     │MySQL│ │Redis  │
-                     └─────┘ └───────┘
+                     ┌───▼───┐ ┌─▼─────┐
+                     │MariaDB│ │Redis  │
+                     └───────┘ └───────┘
 ```
 
 See [deployment.md](deployment.md) for both Docker and bare metal deployment guides.

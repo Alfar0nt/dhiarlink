@@ -99,7 +99,7 @@ These are all the files that contain user-facing or cosmetic "Shlink" branding t
 | 8 | **Add OPcache preloading** | ✅ Done | Created `config/opcache-preload.php` that reads Composer's `autoload_classmap.php` and preloads all classes via `opcache_compile_file()`. Added `opcache.preload` directive to production `php.ini`. |
 | 9 | **Create production RoadRunner config** | ✅ Done | Created `config/roadrunner/.rr.yml` with worker pool tuning: `num_workers: 0` (auto), `max_jobs: 500`, supervisor (128MB HTTP / 256MB jobs), `prefetch: 100`. Env var overrides supported. |
 | 10 | **Remove double compression** | ✅ Done | Removed `gzip` from RoadRunner production middleware — Caddy handles all compression with `encode gzip zstd`. |
-| 11 | **Bare metal deployment guide** | ✅ Done | Complete guide in `deployment.md`: PHP 8.5, MySQL 8.0, Redis 7.4, Caddy 2, RoadRunner, systemd services, nginx dashboard. Includes Docker uninstall/migration instructions. |
+| 11 | **Bare metal deployment guide** | ✅ Done | Complete guide in `deployment.md`: PHP 8.4, MariaDB, Redis 7.4, Caddy 2, RoadRunner, systemd services, nginx dashboard. Debian 13 (Trixie) target. Includes Docker uninstall/migration instructions. |
 
 ### Security Hardening
 

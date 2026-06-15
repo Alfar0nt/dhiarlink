@@ -13,6 +13,7 @@
 - [Session 5: Landing Page Mobile Fix & Social Links](#session-5-landing-page-mobile-fix--social-links)
 - [Session 6: Performance Optimization & Bare Metal Deployment](#session-6-performance-optimization--bare-metal-deployment)
 - [Session 7: Fresh Bare Metal Guide & Docker Migration Cleanup](#session-7-fresh-bare-metal-guide--docker-migration-cleanup)
+- [Session 8: Bare Metal Deployment Debugging & Stabilization](#session-8-bare-metal-deployment-debugging--stabilization)
 
 ---
 
@@ -411,3 +412,55 @@ Client → Cloudflare Edge (TLS) → cloudflared (system service) → localhost:
 - Removed: Step 4 (Restore Your Database) and Step 5 (Continue with Bare Metal Setup)
 - Added: Step 4 (Set Up Bare Metal) — points directly to the complete bare metal guide
 - Migration section now covers: backup → stop Docker → remove Docker → set up fresh bare metal
+
+---
+
+## Session 8: Bare Metal Deployment Debugging & Stabilization
+
+### Prompt 8: Live bare metal deployment — fix all issues encountered during actual setup
+
+**User asked:** Deploy the bare metal stack on a fresh Debian 13 LXC and fix every error encountered along the way.
+
+**Issues discovered and fixed during live deployment:**
+
+| # | Issue | Root Cause | Fix |
+|---|-------|------------|-----|
+| 1 | `php -v` fatal error on opcache preload | PHP config (Step 2) references `opcache-preload.php` before repo is cloned (Step 6) | Added ordering note: comment out preload lines until Step 6, then `sed` to re-enable |
+| 2 | `mysql-server` package not available | Debian 13 ships MariaDB, not MySQL | Rewrote Step 3: `mariadb-server`, `mariadb-secure-installation`, MariaDB config paths, service names |
+| 3 | RoadRunner `max_request_size` parse error | `10M` string not valid — RoadRunner requires integer bytes | Changed to `10485760` in `.rr.yml` |
+| 4 | RoadRunner `bin/rr version` unknown command | Newer RoadRunner uses `--version` flag | Updated deployment guide |
+| 5 | `no encoder registered for name "json"` | `${LOGS_FORMAT:-json}` shell-style defaults not supported by RoadRunner envsubst | Removed `:-default` syntax; defaults set in `.env` and systemd `Environment=` directives |
+| 6 | RoadRunner still failing after envsubst fix | YAML header comment text leaking into parsed value | Cleaned all inline comments from `.rr.yml` values |
+| 7 | Systemd service: wrong deps, no env defaults | `mysql.service` and `redis.service` don't exist on Debian 13 | Changed to `mariadb.service` and `redis-server.service`; added `Environment=` defaults for worker vars |
+| 8 | MemoryMax=512M too tight | 4 workers × 128MB + overhead exceeds 512M | Increased to `1G` |
+| 9 | Cloudflare 502 Bad Gateway | Caddy not installed — nothing listening on port 3000 | Installed Caddy with bare metal Caddyfile |
+| 10 | Cloudflare still 502 after Caddy install | cloudflared used `https://localhost:3000` but bare metal Caddy has `auto_https off` | Changed cloudflared to `http://localhost:3000` |
+| 11 | HTTP 500 on all non-REST routes | Monolog `StreamHandler` fails with `errno=9 Bad file descriptor` writing to `php://stderr` under RoadRunner on bare metal | Made logger conditional: Docker uses `php://stderr` (detected via `/.dockerenv`), bare metal writes to log files |
+
+**Files modified (source code):**
+
+| File | Change |
+|------|--------|
+| `config/roadrunner/.rr.yml` | Fixed `max_request_size` to integer, removed `:-default` envsubst syntax, removed inline comments from values |
+| `config/autoload/logger.global.php` | Added `/.dockerenv` detection; Access and Shlink loggers use file output on bare metal, stream on Docker |
+| `data/infra/systemd/dhiarlink.service` | Fixed service deps (`mariadb.service`, `redis-server.service`), added `Environment=` defaults, increased `MemoryMax=1G` |
+| `.env.example` | Uncommented `WEB_WORKER_NUM` and `TASK_WORKER_NUM`; changed `LOGS_FORMAT` default to `console` |
+
+**Files modified (documentation):**
+
+| File | Change |
+|------|--------|
+| `documentation/deployment.md` | PHP 8.5→8.4, MySQL→MariaDB throughout, expanded PHP install step (no PPA needed), MariaDB secure install walkthrough, DB verification steps, OPcache preload ordering note, RoadRunner env vars in `.env` section, `LOGS_FORMAT=console` default |
+| `documentation/docs.md` | Bare metal architecture diagram: MySQL → MariaDB |
+| `documentation/to-do.md` | Bare metal item updated: PHP 8.4, MariaDB, Debian 13 |
+| `CHANGELOG.md` | Added `### Fixed` section with 5 bare metal fixes; updated Added section for Debian 13/MariaDB |
+| `documentation/prompt-history.md` | This session entry |
+
+**Key learnings:**
+1. RoadRunner envsubst only supports `${VAR}` — no `${VAR:-default}` shell syntax
+2. `max_request_size` must be integer bytes — no human-readable strings like `10M`
+3. Monolog `StreamHandler` with `php://stderr` fails under RoadRunner workers on bare metal (errno=9)
+4. Debian 13 ships MariaDB (not MySQL) and PHP 8.4 (not 8.5) — no PPA needed
+5. `/.dockerenv` file reliably detects Docker vs bare metal environments
+6. RoadRunner workers take ~15-20 seconds to initialize (OPcache preload + class loading)
+7. cloudflared must use `http://` (not `https://`) when bare metal Caddy has `auto_https off`
