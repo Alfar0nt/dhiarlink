@@ -35,8 +35,9 @@ return (static function (): array {
         ],
     ];
 
-    // In dev env or the docker container, stream Dhiarlink logs to stderr, otherwise send them to a file
-    $useStreamForShlinkLogger = $isDev || env('DHIARLINK_RUNTIME') !== null;
+    // In dev env or Docker container, stream logs to stderr; on bare metal, write to files
+    $isDocker = file_exists('/.dockerenv');
+    $useStreamForShlinkLogger = $isDev || ($isDocker && env('DHIARLINK_RUNTIME') !== null);
 
     return [
         'logger' => [
@@ -49,11 +50,15 @@ return (static function (): array {
                     'type' => LoggerType::FILE->value,
                     ...$buildCommonConfig(),
                 ],
-            'Access' => [
-                'type' => LoggerType::STREAM->value,
-                'destination' => 'php://stderr',
-                ...$buildCommonConfig(!runningInRoadRunner()),
-            ],
+            'Access' => $useStreamForShlinkLogger
+                ? [
+                    'type' => LoggerType::STREAM->value,
+                    'destination' => 'php://stderr',
+                    ...$buildCommonConfig(!runningInRoadRunner()),
+                ] : [
+                    'type' => LoggerType::FILE->value,
+                    ...$buildCommonConfig(!runningInRoadRunner()),
+                ],
         ],
 
         'dependencies' => [

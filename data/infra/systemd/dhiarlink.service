@@ -24,7 +24,7 @@ WorkingDirectory=/opt/dhiarlink
 EnvironmentFile=/opt/dhiarlink/.env
 Environment=WEB_WORKER_NUM=0
 Environment=TASK_WORKER_NUM=0
-Environment=LOGS_FORMAT=json
+Environment=LOGS_FORMAT=console
 ExecStart=/opt/dhiarlink/bin/rr serve -c config/roadrunner/.rr.yml
 Restart=always
 RestartSec=5

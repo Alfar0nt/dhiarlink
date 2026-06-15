@@ -1515,7 +1515,7 @@ DHIARLINK_RUNTIME=rr
 # RoadRunner workers (required — no defaults in .rr.yml)
 WEB_WORKER_NUM=0          # 0 = auto-detect CPU cores
 TASK_WORKER_NUM=0         # 0 = auto-detect CPU cores
-LOGS_FORMAT=json          # 'console' for human-readable, 'json' for structured
+LOGS_FORMAT=console       # 'console' works with systemd journal; 'json' causes write failures on bare metal
 
 # Dashboard pre-config
 DHIARLINK_SERVER_URL=https://www.dhiarr.qzz.io
